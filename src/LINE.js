@@ -79,99 +79,99 @@ class LINE {
       baseUrl: `https://${Config.BASE_URL}/images/keypadWithCancel`,
       altText: 'This is amount selector. type number',
       baseSize: {
-        width: 340,
-        height: 450,
+        width: 1040,
+        height: 1350,
       },
       actions: [
         {
           type: 'message',
           text: '1',
           area: {
-            x: 10,
-            y: 10,
-            width: 100,
-            height: 100,
+            x: 30,
+            y: 30,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '2',
           area: {
-            x: 120,
-            y: 10,
-            width: 100,
-            height: 100,
+            x: 360,
+            y: 30,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '3',
           area: {
-            x: 230,
-            y: 10,
-            width: 100,
-            height: 100,
+            x: 690,
+            y: 30,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '4',
           area: {
-            x: 10,
-            y: 120,
-            width: 100,
-            height: 100,
+            x: 30,
+            y: 360,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '5',
           area: {
-            x: 120,
-            y: 120,
-            width: 100,
-            height: 100,
+            x: 360,
+            y: 360,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '6',
           area: {
-            x: 230,
-            y: 120,
-            width: 100,
-            height: 100,
+            x: 690,
+            y: 360,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '7',
           area: {
-            x: 10,
-            y: 230,
-            width: 100,
-            height: 100,
+            x: 30,
+            y: 690,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '8',
           area: {
-            x: 120,
-            y: 230,
-            width: 100,
-            height: 100,
+            x: 360,
+            y: 690,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '9',
           area: {
-            x: 230,
-            y: 230,
-            width: 100,
-            height: 100,
+            x: 690,
+            y: 690,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: 'キャンセル',
           area: {
-            x: 10,
-            y: 340,
-            width: 320,
-            height: 100,
+            x: 30,
+            y: 1020,
+            width: 960,
+            height: 300,
           },
         },
       ],
@@ -184,108 +184,108 @@ class LINE {
       baseUrl: `https://${Config.BASE_URL}/images/keypadWithZero`,
       altText: 'This is amount selector. type number',
       baseSize: {
-        width: 340,
-        height: 450,
+        width: 1040,
+        height: 1350,
       },
       actions: [
         {
           type: 'message',
           text: '1',
           area: {
-            x: 10,
-            y: 10,
-            width: 100,
-            height: 100,
+            x: 30,
+            y: 30,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '2',
           area: {
-            x: 120,
-            y: 10,
-            width: 100,
-            height: 100,
+            x: 360,
+            y: 30,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '3',
           area: {
-            x: 230,
-            y: 10,
-            width: 100,
-            height: 100,
+            x: 690,
+            y: 30,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '4',
           area: {
-            x: 10,
-            y: 120,
-            width: 100,
-            height: 100,
+            x: 30,
+            y: 360,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '5',
           area: {
-            x: 120,
-            y: 120,
-            width: 100,
-            height: 100,
+            x: 360,
+            y: 360,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '6',
           area: {
-            x: 230,
-            y: 120,
-            width: 100,
-            height: 100,
+            x: 690,
+            y: 360,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '7',
           area: {
-            x: 10,
-            y: 230,
-            width: 100,
-            height: 100,
+            x: 30,
+            y: 690,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '8',
           area: {
-            x: 120,
-            y: 230,
-            width: 100,
-            height: 100,
+            x: 360,
+            y: 690,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '9',
           area: {
-            x: 230,
-            y: 230,
-            width: 100,
-            height: 100,
+            x: 690,
+            y: 690,
+            width: 300,
+            height: 300,
           },
         }, {
           type: 'message',
           text: '0',
           area: {
-            x: 10,
-            y: 340,
-            width: 210,
-            height: 100,
+            x: 30,
+            y: 1020,
+            width: 630,
+            height: 300,
           },
         }, {
           type: 'message',
           text: 'キャンセル',
           area: {
-            x: 230,
-            y: 340,
-            width: 100,
-            height: 100,
+            x: 690,
+            y: 1020,
+            width: 300,
+            height: 300,
           },
         },
       ],
@@ -345,6 +345,9 @@ LINE.Builder = class Builder {
     this.messages = [];
   }
 
+  /**
+   * @returns {LINE.Builder}
+   */
   addTextMessage(text) {
     this.messages.push({
       type: 'text',
@@ -353,26 +356,41 @@ LINE.Builder = class Builder {
     return this;
   }
 
+  /**
+   * @returns {LINE.Builder}
+   */
   addKeyPadWithCancel() {
     this.messages.push(LINE.keypadWithCancel);
     return this;
   }
 
+  /**
+   * @returns {LINE.Builder}
+   */
   addKeyPadWithZero() {
     this.messages.push(LINE.keypadWithZero);
     return this;
   }
 
+  /**
+   * @returns {LINE.Builder}
+   */
   addRichMenu() {
     this.messages.push(LINE.richmenu);
     return this;
   }
 
+  /**
+   * @returns {LINE.Builder}
+   */
   addProductCarousel(products, showAdd, showDelete, showSelect) {
     this.messages.push(LINE.productCarousel(products, showAdd, showDelete, showSelect));
     return this;
   }
 
+  /**
+   * @returns {LINE.Builder}
+   */
   addConfirm(text, yes, no) {
     const yesText = yes || 'はい';
     const noText = no || 'いいえ';
@@ -399,6 +417,9 @@ LINE.Builder = class Builder {
     return this;
   }
 
+  /**
+   * @returns {LINE.Builder}
+   */
   send() {
     return LINE.$http({
       url: '/message/reply',

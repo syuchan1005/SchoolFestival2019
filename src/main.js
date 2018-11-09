@@ -27,6 +27,7 @@ router.get('/images/:image/:width', async (ctx) => {
   const path = `${__dirname}/../public/images/${ctx.params.image}/${ctx.params.width}.png`;
   const image = await fs.readFile(path).catch(() => undefined);
   if (image) {
+    ctx.response.set('Cache-Control', 'private, no-cache, no-store');
     ctx.type = 'image/png';
     ctx.body = image;
   } else {
