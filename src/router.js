@@ -1,11 +1,11 @@
 import Vue from 'vue';
 import Router from 'vue-router';
 import Home from './views/Home.vue';
-import Graph from './views/Graph.vue';
+import Information from './views/Information.vue';
 
 Vue.use(Router);
 
-export default new Router({
+const router = new Router({
   routes: [
     {
       path: '/',
@@ -13,9 +13,11 @@ export default new Router({
       component: Home,
     },
     {
-      path: '/graph',
-      name: 'graph',
-      component: Graph,
+      path: '/info',
+      name: 'information',
+      component: Information,
     },
   ],
 });
+
+export default router;

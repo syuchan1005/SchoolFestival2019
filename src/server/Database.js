@@ -176,12 +176,61 @@ class Database {
     return await this.sequelize.query(
       `SELECT name, price, amount, ticket, amount * price as subtotal
             FROM products
-              INNER JOIN (SELECT SUM(amount) as amount, SUM(ticket) as ticket FROM orders) AS orders
-            WHERE teamId = ${teamId};`,
+            INNER JOIN (SELECT SUM(amount) as amount, SUM(ticket) as ticket, productId FROM orders GROUP BY productId) AS orders
+            WHERE teamId = ${teamId} AND products.id = orders.productId;`,
       {
         type: Sequelize.QueryTypes.SELECT,
       },
     );
+  }
+
+  /**
+   * @param teamId Number
+   * @param date string format(YYYY-MM-DD)
+   * @param startTime string format(HH:mm)
+   * @param endTime string format(HH:mm)
+   * @returns {Promise<Array<Object>>}
+   */
+  async getInfo(teamId, date, startTime, endTime) {
+    const sqlResult = await this.sequelize.query(
+      `SELECT 
+              productId,
+              p.name || ' (' || p.price || '円)' AS name,
+              strftime('%H:00', orders.createdAt, 'localtime') AS time,
+              SUM(amount) AS amount,
+              SUM(amount) * p.price AS subtotal
+            FROM orders
+            INNER JOIN products p on orders.productId = p.id AND p.teamId = ${teamId}
+            WHERE date(orders.createdAt, 'localtime') = '${date}'
+              AND strftime('%H:%M', orders.createdAt, 'localtime') >= '${startTime}'
+              AND strftime('%H:%M', orders.createdAt, 'localtime') <= '${endTime}' 
+            GROUP BY productId, strftime('%Y%m%d%H', orders.createdAt, 'localtime')
+            ORDER BY productId ASC;`,
+      {
+        type: Sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    const result = [];
+    let tmp;
+    let id = -1;
+    sqlResult.forEach((model) => {
+      if (id !== model.productId) {
+        if (id !== -1) result.push(tmp);
+        id = model.productId;
+        tmp = {
+          id,
+          name: model.name,
+          time: {},
+        };
+      }
+      tmp.time[model.time] = {
+        amount: model.amount,
+        subtotal: model.subtotal,
+      };
+    });
+    result.push(tmp);
+    return result;
   }
 }
 

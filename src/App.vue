@@ -1,9 +1,9 @@
 <template>
   <v-app>
-    <v-toolbar class="success header-bar" dark v-if="$route.path === '/graph'">
+    <v-toolbar class="green header-bar" dark v-if="$route.path === '/info'">
       <v-toolbar-title>School Festival 2019</v-toolbar-title>
       <v-spacer/>
-      <v-btn class="primary">logout</v-btn>
+      <v-btn class="primary" href="/line/logout">logout</v-btn>
     </v-toolbar>
 
     <v-content>

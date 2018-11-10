@@ -11,6 +11,7 @@ import KoaProxy from 'koa-proxies';
 import LineLogin from 'line-login';
 import chalk from 'chalk';
 import debug from 'debug';
+import moment from 'moment';
 
 import Config from '../../config';
 import LINEMiddleware from './LINEMiddleware';
@@ -64,7 +65,7 @@ router.get('/line/callback', async (ctx) => {
   });
   if (tokenResponse) {
     ctx.session.lineUserId = tokenResponse.id_token.sub;
-    ctx.redirect(`https://${Config.BASE_URL}/#/graph`);
+    ctx.redirect(`https://${Config.BASE_URL}/#/info`);
   } else {
     ctx.redirect(`https://${Config.BASE_URL}/?login=failed#/`);
   }
@@ -74,6 +75,34 @@ router.get('/line/logout', (ctx) => {
   delete ctx.session.lineUserId;
   ctx.redirect(`https://${Config.BASE_URL}/#/`);
 });
+
+const apiRouter = new KoaRouter();
+
+apiRouter.get('/total', async (ctx) => {
+  ctx.body = (await Database.getTotal(ctx.$user.get('teamId'))).reduce((prev, next) => {
+    /* eslint-disable no-param-reassign */
+    prev.amount += next.amount;
+    prev.ticket += next.ticket;
+    prev.sum += next.subtotal;
+    return prev;
+  }, { ticket: 0, amount: 0, sum: 0 });
+});
+
+apiRouter.get('/info', async (ctx) => {
+  ctx.body = await Database.getInfo(ctx.$user.get('teamId'),
+    ctx.query.date || moment().format('YYYY-MM-DD'),
+    ctx.query.startTime || '00:00', ctx.query.endTime || '23:00');
+});
+
+router.use('/api', async (ctx, next) => {
+  // eslint-disable-next-line no-cond-assign
+  if (ctx.session.lineUserId && (ctx.$user = await Database.findUser(ctx.session.lineUserId))) {
+    ctx.status = 200;
+    await next();
+  } else {
+    ctx.status = 401;
+  }
+}, apiRouter.routes(), apiRouter.allowedMethods());
 
 app.use(router.routes());
 app.use(router.allowedMethods());

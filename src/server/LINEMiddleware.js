@@ -303,6 +303,7 @@ const actions = {
     keyword: '現在の売上を確認',
     async handler(ctx, event, middleware) {
       const productsTotal = await Database.getTotal(ctx.$user.get('teamId'));
+      console.log(productsTotal);
       const total = productsTotal.reduce((prev, next) => {
         /* eslint-disable no-param-reassign */
         prev.amount += next.amount;

@@ -28,13 +28,14 @@ export default {
   },
   computed: {
     insertColorData() {
+      const data = this.chartData;
       return {
-        ...this.chartData,
-        datasets: this.chartData.datasets.map((v, i) => ({
-          ...v,
+        ...data,
+        datasets: data.datasets.map((v, i) => ({
           backgroundColor: this.colors[i],
           borderColor: this.colors[i],
           fill: false,
+          ...v,
         })),
       };
     },
@@ -42,10 +43,21 @@ export default {
   watch: {
     chartData() {
       // eslint-disable-next-line no-underscore-dangle
-      this.$data._chart.update();
+      this.$data._chart.destroy();
+      this.reRender();
+    },
+    options() {
+      // eslint-disable-next-line no-underscore-dangle
+      this.$data._chart.destroy();
+      this.reRender();
     },
   },
   mounted() {
-    this.renderChart(this.insertColorData, this.options);
+    this.reRender();
+  },
+  methods: {
+    reRender() {
+      this.renderChart(this.insertColorData, this.options);
+    },
   },
 };
