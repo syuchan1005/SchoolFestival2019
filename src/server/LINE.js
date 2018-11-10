@@ -1,5 +1,5 @@
 import axios from 'axios';
-import Config from '../config';
+import Config from '../../config';
 
 class LINE {
   static get $http() {
@@ -424,7 +424,7 @@ LINE.Builder = class Builder {
     return LINE.$http({
       url: '/message/reply',
       headers: {
-        Authorization: `Bearer ${Config.LINE_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${Config.MESSAGING_API.LINE_ACCESS_TOKEN}`,
       },
       data: this,
     }).catch(v => console.error(v.response.data)); // eslint-disable-line no-console

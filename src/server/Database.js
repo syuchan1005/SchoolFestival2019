@@ -9,7 +9,7 @@ class Database {
     this.sequelize = new Sequelize({
       database: 'database',
       dialect: 'sqlite',
-      storage: `${__dirname}/../${fileName}`,
+      storage: `${__dirname}/../../${fileName}`,
       operatorsAliases: false,
       logging: v => logger(v),
     });
