@@ -91,7 +91,8 @@ apiRouter.get('/total', async (ctx) => {
 apiRouter.get('/info', async (ctx) => {
   ctx.body = await Database.getInfo(ctx.$user.get('teamId'),
     ctx.query.date || moment().format('YYYY-MM-DD'),
-    ctx.query.startTime || '00:00', ctx.query.endTime || '23:00');
+    ctx.query.startTime || '00:00', ctx.query.endTime || '23:00',
+    ctx.query.minutes || 60);
 });
 
 apiRouter.get('/csv', async (ctx) => {

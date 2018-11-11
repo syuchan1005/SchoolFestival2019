@@ -23,7 +23,7 @@
               v-model="chartData.date"
               label="日付"
               prepend-icon="event"
-              readonly hide-details />
+              readonly hide-details/>
             <v-date-picker v-model="chartData.date" @input="chartData.showDatePicker = false"/>
           </v-menu>
           <div class="time">
@@ -32,7 +32,7 @@
               v-model="chartData.startTime"
               label="Start Time"
               style="max-width: 80px"
-              hide-details />
+              hide-details/>
             <div class="suffix">:00</div>
 
             <div class="between">~</div>
@@ -42,9 +42,19 @@
               v-model="chartData.endTime"
               label="End Time"
               style="max-width: 80px"
-              hide-details />
+              hide-details/>
             <div class="suffix">:00</div>
           </div>
+
+          <v-select
+            :items="[
+            { text: '15分', value: 15 },
+            { text: '30分', value: 30 },
+            { text: '1時間', value: 60 }]"
+            v-model="chartData.minutes"
+            label="step"
+            style="max-width: 100px;margin-left: 10px;"
+            hide-details/>
 
           <v-spacer/>
 
@@ -67,6 +77,7 @@
 </template>
 
 <script>
+import moment from 'moment';
 import LineChart from '../components/LineChart';
 
 export default {
@@ -88,6 +99,7 @@ export default {
         time: [...Array(24).keys()].map(v => `0${v}`.slice(-2)),
         startTime: '00',
         endTime: '23',
+        minutes: 60,
       },
     };
   },
@@ -95,7 +107,13 @@ export default {
     chartLabel() {
       const start = parseInt(this.chartData.startTime, 10);
       const end = parseInt(this.chartData.endTime, 10);
-      return [...Array(end - start + 1).keys()].map(v => `${`0${v + start}`.slice(-2)}:00`);
+      const time = moment({ hour: start });
+      const stepCount = (end - start) * (60 / this.chartData.minutes) + 1;
+      return [...Array(stepCount).keys()].map(() => {
+        const s = time.format('HH:mm');
+        time.add(this.chartData.minutes, 'm');
+        return s;
+      });
     },
     infoData() {
       return {
@@ -173,6 +191,7 @@ export default {
           date: this.chartData.date,
           startTime: `${this.chartData.startTime}:00`,
           endTime: `${this.chartData.endTime}:00`,
+          minutes: this.chartData.minutes,
         },
       }).then((res) => {
         this.info = res.data;

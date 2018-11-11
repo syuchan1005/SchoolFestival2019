@@ -190,23 +190,25 @@ class Database {
    * @param date string format(YYYY-MM-DD)
    * @param startTime string format(HH:mm)
    * @param endTime string format(HH:mm)
+   * @param minutes number
    * @returns {Promise<Array<Object>>}
    */
-  async getInfo(teamId, date, startTime, endTime) {
+  async getInfo(teamId, date, startTime, endTime, minutes) {
     const sqlResult = await this.sequelize.query(
-      `SELECT 
-              productId,
-              p.name || ' (' || p.price || '円)' AS name,
-              strftime('%H:00', orders.createdAt, 'localtime') AS time,
-              SUM(amount) AS amount,
-              SUM(amount) * p.price AS subtotal
+      `SELECT
+                   productId,
+                   p.name || ' (' || p.price || '円)' AS name,
+                   strftime('%H:%M',
+                     strftime('%s', orders.createdAt) / (60 * ${minutes}) * (60 * ${minutes}),
+                     'unixepoch', 'localtime') AS time,
+                   SUM(amount) AS amount,
+                   SUM(amount) * p.price AS subtotal
             FROM orders
-            INNER JOIN products p on orders.productId = p.id AND p.teamId = ${teamId}
-            WHERE date(orders.createdAt, 'localtime') = '${date}'
-              AND strftime('%H:%M', orders.createdAt, 'localtime') >= '${startTime}'
-              AND strftime('%H:%M', orders.createdAt, 'localtime') <= '${endTime}' 
-            GROUP BY productId, strftime('%Y%m%d%H', orders.createdAt, 'localtime')
-            ORDER BY productId ASC;`,
+                   INNER JOIN products p on orders.productId = p.id AND p.teamId = ${teamId}
+            WHERE strftime('%Y-%m-%d %H:%M:%S', orders.createdAt, 'localtime') >= '${date} ${startTime}:00'
+              AND strftime('%Y-%m-%d %H:%M:%S', orders.createdAt, 'localtime') <= '${date} ${endTime}:00'
+              GROUP BY productId , strftime('%s', orders.createdAt, 'localtime') / (60 * ${minutes})
+            ORDER BY productId ASC`,
       {
         type: Sequelize.QueryTypes.SELECT,
       },
