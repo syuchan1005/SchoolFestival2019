@@ -21,6 +21,7 @@
     "chalk": "^2.4.1",
     "chart.js": "^2.7.3",
     "debug": "^4.1.0",
+    "json2csv": "^4.3.0",
     "koa": "^2.6.1",
     "koa-bodyparser": "^4.2.1",
     "koa-logger": "^3.2.0",

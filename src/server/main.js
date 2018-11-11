@@ -94,6 +94,10 @@ apiRouter.get('/info', async (ctx) => {
     ctx.query.startTime || '00:00', ctx.query.endTime || '23:00');
 });
 
+apiRouter.get('/csv', async (ctx) => {
+  ctx.body = await Database.getCSVData(ctx.$user.get('teamId'));
+});
+
 router.use('/api', async (ctx, next) => {
   // eslint-disable-next-line no-cond-assign
   if (ctx.session.lineUserId && (ctx.$user = await Database.findUser(ctx.session.lineUserId))) {

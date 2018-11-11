@@ -18,7 +18,7 @@ export default {
     },
     height: {
       type: [Number, String],
-      default: '50vw',
+      default: '40vw',
     },
   },
   data() {

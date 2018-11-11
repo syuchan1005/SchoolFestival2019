@@ -3,7 +3,7 @@
     <v-toolbar class="green header-bar" dark v-if="$route.path === '/info'">
       <v-toolbar-title>School Festival 2019</v-toolbar-title>
       <v-spacer/>
-      <v-btn class="primary" href="/line/logout">logout</v-btn>
+      <v-btn class="blue darken-1" href="/line/logout">logout</v-btn>
     </v-toolbar>
 
     <v-content>

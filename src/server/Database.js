@@ -1,5 +1,6 @@
 import Sequelize from 'sequelize';
 import debug from 'debug';
+import { parse as json2csv } from 'json2csv';
 
 const logger = debug('main:sql');
 
@@ -212,7 +213,7 @@ class Database {
     );
 
     const result = [];
-    let tmp;
+    let tmp = null;
     let id = -1;
     sqlResult.forEach((model) => {
       if (id !== model.productId) {
@@ -229,8 +230,29 @@ class Database {
         subtotal: model.subtotal,
       };
     });
-    result.push(tmp);
+    if (tmp) result.push(tmp);
     return result;
+  }
+
+  async getCSVData(teamId) {
+    const data = await this.sequelize.query(`
+      SELECT
+             t.name                                                       as teamName,
+             orders.id                                                    as orderId,
+             amount,
+             ticket,
+             productId,
+             p.name,
+             price,
+             amount * price                                               as subtotal,
+             strftime('%Y-%m-%d %H:%M:%f', orders.createdAt, 'localtime') as createdAt
+      FROM orders
+             INNER JOIN products p on orders.productId = p.id
+             INNER JOIN teams t on p.teamId = t.id
+      WHERE teamId = ${teamId}`, {
+      type: Sequelize.QueryTypes.SELECT,
+    });
+    return json2csv(data);
   }
 }
 
