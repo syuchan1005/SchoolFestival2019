@@ -67,16 +67,20 @@ router.get('/line/callback', async (ctx) => {
     ctx.session.lineUserId = tokenResponse.id_token.sub;
     ctx.redirect(`https://${Config.BASE_URL}/#/info`);
   } else {
-    ctx.redirect(`https://${Config.BASE_URL}/?login=failed#/`);
+    ctx.redirect(`https://${Config.BASE_URL}/?state=failed#/`);
   }
 });
 
 router.get('/line/logout', (ctx) => {
   delete ctx.session.lineUserId;
-  ctx.redirect(`https://${Config.BASE_URL}/#/`);
+  ctx.redirect(`https://${Config.BASE_URL}/?state=logout#/`);
 });
 
 const apiRouter = new KoaRouter();
+
+apiRouter.get('/', (ctx) => {
+  ctx.body = true;
+});
 
 apiRouter.get('/total', async (ctx) => {
   ctx.body = (await Database.getTotal(ctx.$user.get('teamId'))).reduce((prev, next) => {
@@ -99,11 +103,33 @@ apiRouter.get('/csv', async (ctx) => {
   ctx.body = await Database.getCSVData(ctx.$user.get('teamId'));
 });
 
+apiRouter.get('/team', async (ctx) => {
+  ctx.body = await Database.getTeamData(ctx.$user.get('teamId'));
+});
+
+apiRouter.post('/team/name', async (ctx) => {
+  await Database.updateOrCreateUser(ctx.$user.get('id'), ctx.request.body.name);
+});
+
+apiRouter.post('/team/product', async (ctx) => {
+  const { name, price } = ctx.request.body;
+  await Database.addProduct(name, price, ctx.$user.get('teamId'));
+});
+
+apiRouter.post('/team/product/:id', async (ctx) => {
+  await Database.deleteProduct(ctx.params.id, ctx.$user.get('teamId'));
+});
+
 router.use('/api', async (ctx, next) => {
   // eslint-disable-next-line no-cond-assign
-  if (ctx.session.lineUserId && (ctx.$user = await Database.findUser(ctx.session.lineUserId))) {
-    ctx.status = 200;
-    await next();
+  if (ctx.session.lineUserId) {
+    ctx.$user = await Database.findUser(ctx.session.lineUserId);
+    if (ctx.$user) {
+      ctx.status = 200;
+      await next();
+    } else {
+      ctx.status = 412;
+    }
   } else {
     ctx.status = 401;
   }

@@ -1,9 +1,13 @@
 <template>
   <v-app>
-    <v-toolbar class="green header-bar" dark v-if="$route.path === '/info'">
+    <v-toolbar color="green" dark tabs v-show="$route.path !== '/'">
       <v-toolbar-title>School Festival 2019</v-toolbar-title>
       <v-spacer/>
       <v-btn class="blue darken-1" href="/line/logout">logout</v-btn>
+
+      <v-tabs slot="extension" grow color="green" slider-color="yellow">
+        <v-tab v-for="name in pages" :key="name" :to="name">{{ name }}</v-tab>
+      </v-tabs>
     </v-toolbar>
 
     <v-content>
@@ -17,6 +21,11 @@
 <script>
 export default {
   name: 'App',
+  data() {
+    return {
+      pages: ['info', 'setting'],
+    };
+  },
 };
 </script>
 
@@ -30,9 +39,5 @@ export default {
     margin: 0;
     width: 100%;
     height: 100%;
-  }
-
-  .header-bar {
-    z-index: 1;
   }
 </style>

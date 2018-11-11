@@ -11,7 +11,7 @@
 
     <div class="alert">
       <v-alert v-model="showFailedAlert" type="error" dismissible>
-        Login failed.
+        {{ failedMessage }}
       </v-alert>
     </div>
   </div>
@@ -25,13 +25,31 @@ export default {
   title: 'School Festival 2019',
   data() {
     return {
+      failedMessage: '',
       showFailedAlert: false,
       botURL: process.env.VUE_APP_BOT_URL,
     };
   },
   mounted() {
     const query = qs.parse(window.location.search.substring(1));
-    this.showFailedAlert = query.login === 'failed';
+    if (!query.state) {
+      this.$http({
+        url: '/api',
+      }).then((res) => {
+        if (res.status === 200) this.$router.push('/info');
+      }).catch((err) => {
+        if (err.response.status === 412) {
+          this.failedMessage = 'Botから設定が必要です';
+          this.showFailedAlert = true;
+        }
+      });
+    } else if (query.state === 'failed') {
+      this.failedMessage = 'ログインに失敗しました';
+      this.showFailedAlert = true;
+    } else if (query.state === 'no bot') {
+      this.failedMessage = 'Botから設定が必要です';
+      this.showFailedAlert = true;
+    }
   },
 };
 </script>

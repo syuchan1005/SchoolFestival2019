@@ -348,7 +348,7 @@ class LINEMiddleware {
       /* イベントであることを確認 */
       if (ctx.request.body.events && ctx.request.body.events.length === 1) {
         const event = ctx.request.body.events[0];
-        /* ユーザーからのメッセージのみ反応する */
+        /* ユーザーからのメッセージのみ反応する. フォロー解除(ブロック) された場合はユーザーデータを削除 */
         if (event.type === 'message' && event.source.type === 'user') {
           /* sessionがある or キーワードだったら処理続行, 当てはまらない場合はRichMenuのImagemapを送信 */
           if (this.sessions[event.source.userId] || (event.message.type === 'text'
@@ -387,6 +387,8 @@ class LINEMiddleware {
               .addRichMenu()
               .send();
           }
+        } else if (event.type === 'unfollow' && event.source.type === 'user') {
+          await Database.deleteUser(event.source.userId);
         }
       }
     };

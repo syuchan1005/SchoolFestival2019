@@ -79,6 +79,12 @@ class Database {
     });
   }
 
+  async deleteUser(lineUserId) {
+    return this.models.user.destroy({
+      where: { lineUserId },
+    });
+  }
+
   /**
    * find or create user
    * @param lineUserId string
@@ -120,6 +126,17 @@ class Database {
     return await this.models.user.findOne({
       where: { lineUserId },
     }).then(model => [model, false]);
+  }
+
+  async getTeamData(teamId) {
+    return await this.models.team.findOne({
+      attributes: ['name'],
+      where: { id: teamId },
+      include: [{
+        model: this.models.product,
+        attributes: ['id', 'name', 'price'],
+      }],
+    });
   }
 
   async findProducts(teamId) {

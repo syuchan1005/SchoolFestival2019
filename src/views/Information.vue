@@ -181,7 +181,8 @@ export default {
       }).then((res) => {
         this.total = res.data;
       }).catch((err) => {
-        if (err.response.status === 401) this.$router.push('/');
+        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
+        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
       });
     },
     loadInfo() {
@@ -196,7 +197,8 @@ export default {
       }).then((res) => {
         this.info = res.data;
       }).catch((err) => {
-        if (err.response.status === 401) this.$router.push('/');
+        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
+        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
       });
     },
     downloadCSV() {
