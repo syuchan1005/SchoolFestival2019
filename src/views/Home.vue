@@ -1,11 +1,11 @@
 <template>
   <div class="home">
     <v-btn color="#00B900" dark large href="/line/auth" class="login-btn">
-      <v-icon dark left>fab fa-line</v-icon>
-      LINE Login
+      <v-icon dark size="155px">fab fa-line</v-icon>
+      <div>Login</div>
     </v-btn>
-    <v-btn color="#0068b9" dark large :href="botURL" class="login-btn">
-      <v-icon dark left>fab fa-line</v-icon>
+    <v-btn color="#0068b9" dark large :href="botURL" style="z-index:1">
+      <v-icon dark left>fa-robot</v-icon>
       Add LineBot
     </v-btn>
 
@@ -54,30 +54,38 @@ export default {
 };
 </script>
 
-<style scoped>
-.home {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
+<style>
+  .login-btn .v-btn__content {
+    flex-direction: column !important;
+    font-size: 1.5rem;
+  }
+</style>
 
-.v-btn {
-  margin: 10px;
-}
+<style lang="scss" scoped>
+  .home {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
 
-.login-btn {
-  z-index: 1;
-}
+  .v-btn {
+    margin: 10px;
+  }
 
-.alert {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-end;
-}
+  .login-btn {
+    z-index: 1;
+    height: auto;
+  }
+
+  .alert {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+  }
 </style>

@@ -116,8 +116,17 @@ apiRouter.post('/team/product', async (ctx) => {
   await Database.addProduct(name, price, ctx.$user.get('teamId'));
 });
 
-apiRouter.post('/team/product/:id', async (ctx) => {
+apiRouter.del('/team/product/:id', async (ctx) => {
   await Database.deleteProduct(ctx.params.id, ctx.$user.get('teamId'));
+});
+
+apiRouter.post('/team/order', async (ctx) => {
+  const { productId, amount, ticket } = ctx.request.body;
+  await Database.addOrder(productId, amount, ticket);
+});
+
+apiRouter.del('/team/order/:id', async (ctx) => {
+  await Database.deleteOrder(ctx.params.id, ctx.$user.get('teamId'));
 });
 
 router.use('/api', async (ctx, next) => {

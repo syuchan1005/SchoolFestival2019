@@ -45,6 +45,7 @@ class Database {
           unique: 'name-price',
         },
         /* teamId */
+        /* deletedAt */
       }, { paranoid: true }),
       order: this.sequelize.define('order', {
         amount: {
@@ -146,11 +147,12 @@ class Database {
   }
 
   async addProduct(name, price, teamId) {
-    return await this.models.product.create({
+    return await this.models.product.upsert({
       name,
       price,
       teamId,
-    });
+      deletedAt: null,
+    }, { returning: true, where: { name, price } });
   }
 
   async deleteProduct(productId, teamId) {

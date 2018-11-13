@@ -26,6 +26,7 @@
               readonly hide-details/>
             <v-date-picker v-model="chartData.date" @input="chartData.showDatePicker = false"/>
           </v-menu>
+
           <div class="time">
             <v-select
               :items="chartData.time.slice(0, chartData.endTime)"
@@ -176,16 +177,20 @@ export default {
       this.loadInfo();
     },
     loadTotal() {
+      this.$store.commit('setLoading', { name: 'info-total', value: true });
       this.$http({
         url: '/api/total',
       }).then((res) => {
+        this.$store.commit('setLoading', { name: 'info-total', value: false });
         this.total = res.data;
       }).catch((err) => {
+        this.$store.commit('setLoading', { name: 'info-total', value: false });
         if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
         else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
       });
     },
     loadInfo() {
+      this.$store.commit('setLoading', { name: 'info-info', value: true });
       this.$http({
         url: '/api/info',
         params: {
@@ -195,8 +200,10 @@ export default {
           minutes: this.chartData.minutes,
         },
       }).then((res) => {
+        this.$store.commit('setLoading', { name: 'info-info', value: false });
         this.info = res.data;
       }).catch((err) => {
+        this.$store.commit('setLoading', { name: 'info-info', value: false });
         if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
         else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
       });
@@ -246,15 +253,10 @@ export default {
     }
   }
 
-  .refresh-btn {
-    position: absolute;
-    bottom: 16px;
-    right: 16px;
-  }
-
   .toolbar-card {
     padding: 0 10px 5px 10px;
     display: flex;
+    flex-wrap: wrap;
 
     .date-picker {
       max-width: 130px;

@@ -19,7 +19,8 @@
         </v-btn>
       </v-card-title>
       <v-data-table
-        :headers="headers"
+        :headers="[{ text: '商品名', value: 'name' }, { text: '価格', value: 'price' },
+         { text: '', value: 'delete', align: 'right', sortable: false, width: '30px' }]"
         :items="products"
         hide-actions
       >
@@ -34,6 +35,10 @@
         </template>
       </v-data-table>
     </v-card>
+
+    <v-btn fab dark class="refresh-btn green" @click="loadData">
+      <v-icon>refresh</v-icon>
+    </v-btn>
 
     <v-dialog v-model="showAddDialog" persistent max-width="300px">
       <v-card>
@@ -62,7 +67,8 @@
 
           <v-btn color="blue darken-1" flat @click="showDeleteDialog = false">削除しない</v-btn>
 
-          <v-btn color="green darken-1" flat @click="showDeleteDialog = false">削除する</v-btn>
+          <v-btn color="green darken-1" flat
+                 @click="() => {deleteProduct();showDeleteDialog = false}">削除する</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -91,17 +97,6 @@ export default {
     return {
       teamName: '',
       teamNameModel: '',
-      headers: [
-        { text: '商品名', value: 'name' },
-        { text: '価格', value: 'price' },
-        {
-          text: '',
-          value: 'delete',
-          align: 'right',
-          sortable: false,
-          width: '30px',
-        },
-      ],
       products: [],
       showAddDialog: false,
       addProductItem: {
@@ -118,15 +113,22 @@ export default {
   },
   methods: {
     loadData() {
+      this.$store.commit('setLoading', { name: 'setting-team', value: true });
       this.$http({
         url: '/api/team',
       }).then((res) => {
+        this.$store.commit('setLoading', { name: 'setting-team', value: false });
         this.teamName = res.data.name;
         this.teamNameModel = res.data.name;
         this.products = res.data.products;
+      }).catch((err) => {
+        this.$store.commit('setLoading', { name: 'setting-team', value: false });
+        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
+        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
       });
     },
     changeTeamName() {
+      this.$store.commit('setLoading', { name: 'setting-team-name', value: true });
       this.$http({
         method: 'post',
         url: '/api/team/name',
@@ -134,32 +136,44 @@ export default {
           name: this.teamNameModel,
         },
       }).then(() => {
+        this.$store.commit('setLoading', { name: 'setting-team-name', value: false });
         this.loadData();
       }).catch((err) => {
+        this.$store.commit('setLoading', { name: 'setting-team-name', value: false });
         if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
         else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
       });
     },
     addProduct() {
-      if (this.addProductItem.name.length === 0 || this.addProductItem.price.length === 0) return;
+      if (this.addProductItem.name.length === 0) return;
+      this.$store.commit('setLoading', { name: 'setting-product', value: true });
       this.$http({
         method: 'post',
         url: '/api/team/product',
         data: this.addProductItem,
       }).then(() => {
+        this.$store.commit('setLoading', { name: 'setting-product', value: false });
         this.loadData();
+        this.addProductItem = {
+          name: '',
+          price: 0,
+        };
       }).catch((err) => {
+        this.$store.commit('setLoading', { name: 'setting-product', value: false });
         if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
         else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
       });
     },
     deleteProduct() {
+      this.$store.commit('setLoading', { name: 'setting-product-delete', value: true });
       this.$http({
-        method: 'post',
+        method: 'delete',
         url: `/api/team/product/${this.deleteProductId}`,
       }).then(() => {
+        this.$store.commit('setLoading', { name: 'setting-product-delete', value: false });
         this.loadData();
       }).catch((err) => {
+        this.$store.commit('setLoading', { name: 'setting-product-delete', value: false });
         if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
         else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
       });

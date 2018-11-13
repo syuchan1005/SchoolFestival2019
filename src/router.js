@@ -1,8 +1,6 @@
 import Vue from 'vue';
 import Router from 'vue-router';
 import Home from './views/Home.vue';
-import Information from './views/Information.vue';
-import Setting from './views/Setting.vue';
 
 Vue.use(Router);
 
@@ -16,12 +14,17 @@ const router = new Router({
     {
       path: '/info',
       name: 'information',
-      component: Information,
+      component: () => import(/* webpackChunkName: "authed" */ './views/Information.vue'),
     },
     {
       path: '/setting',
       name: 'setting',
-      component: Setting,
+      component: () => import(/* webpackChunkName: "authed" */ './views/Setting.vue'),
+    },
+    {
+      path: '/operation',
+      name: 'operation',
+      component: () => import(/* webpackChunkName: "authed" */ './views/Operation.vue'),
     },
   ],
 });
