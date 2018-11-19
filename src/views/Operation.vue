@@ -18,32 +18,144 @@
     </v-card>
 
     <v-card class="forms">
-      <v-text-field label="個数" v-model="amount" type="number" hide-details />
-      <v-text-field label="食券" v-model="ticket" type="number" hide-details />
+      <v-text-field label="個数" v-model="amount" type="number" hide-details/>
+      <v-text-field label="食券" v-model="ticket" type="number" hide-details/>
     </v-card>
 
     <v-card class="add-form">
       <div>合計: {{sumTotal}}円</div>
       <div class="sub">{{change >= 0 ? '不足' : 'お釣り'}}: {{Math.abs(change)}}円</div>
-      <v-spacer />
-      <v-btn class="primary" large @click="addOrder">追加</v-btn>
+      <v-spacer/>
+      <apollo-mutation :mutation="addOrderMutation"
+                       :variables="{ productId: this.selectedProductId, amount, ticket }">
+        <template slot-scope="{ mutate, loading }">
+          <v-btn class="primary" large :disabled="loading" @click="mutate()">追加</v-btn>
+        </template>
+      </apollo-mutation>
     </v-card>
 
-    <v-btn fab dark class="refresh-btn green" @click="loadData">
+    <v-card>
+      <v-data-table
+        :headers="[{ sortable: false, text: '商品名', value: 'name' },
+         { sortable: false, text: '価格', value: 'price' },
+         { sortable: false, text: '個数', value: 'amount' },
+         { sortable: false, text: '食券', value: 'ticket' },
+         { sortable: false, text: '追加日時', value: 'createAt' },
+         { text: '', value: 'delete', align: 'right', sortable: false, width: '30px' }]"
+        :items="order.orders" hide-actions>
+        <template slot="items" slot-scope="props">
+          <td>{{ order.products.find(p => p.id === props.item.productId).name }}</td>
+          <td>{{ order.products.find(p => p.id === props.item.productId).price }}</td>
+          <td>{{ props.item.amount }}</td>
+          <td>{{ props.item.ticket }}</td>
+          <td>{{ props.item.createdAt }}</td>
+          <td>
+            <v-icon @click="() => { showDeleteDialog = true; deleteOrderId = props.item.id; }">
+              delete
+            </v-icon>
+          </td>
+        </template>
+      </v-data-table>
+    </v-card>
+
+    <v-dialog v-model="showDeleteDialog" persistent max-width="250px">
+      <v-card>
+        <v-card-title>削除しますか?</v-card-title>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <apollo-mutation :mutation="deleteOrderMutation"
+                           :variables="{ orderId: deleteOrderId }"
+                           @done="() => {
+                             this.showDeleteDialog = false;
+                             this.$apollo.queries.order.refetch();
+                           }">
+            <template slot-scope="{ mutate, loading }">
+              <v-btn color="blue darken-1" flat :disabled="loading"
+                     @click="showDeleteDialog = false">削除しない
+              </v-btn>
+
+              <v-btn color="green darken-1" flat :disabled="loading"
+                     @click="mutate()">削除する
+              </v-btn>
+            </template>
+          </apollo-mutation>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-btn fab dark class="refresh-btn green" @click="$apollo.queries.products.refetch()">
       <v-icon>refresh</v-icon>
     </v-btn>
   </div>
 </template>
 
 <script>
+import gql from 'graphql-tag';
+
 export default {
   name: 'Operation',
+  apollo: {
+    products: {
+      query: gql`query Products($teamId: Int!){
+        team(teamId: $teamId) {
+          products {
+            id
+            name
+            price
+          }
+        }
+      }`,
+      variables() {
+        return {
+          teamId: this.$store.state.teamId,
+        };
+      },
+      manual: true,
+      result({ data }) {
+        this.products = data.team.products;
+        if (this.products.length >= 1) {
+          this.selectedProductId = this.products[0].id;
+        }
+      },
+    },
+    order: {
+      query: gql`query Orders($teamId: Int!) {
+        team(teamId: $teamId) {
+          order {
+            products {id name price deletedAt}
+            orders { id amount ticket productId createdAt }
+          }
+        }
+      }`,
+      variables() {
+        return {
+          teamId: this.$store.state.teamId,
+        };
+      },
+      manual: true,
+      result({ data }) {
+        this.order = data.team.order;
+      },
+    },
+  },
   data() {
     return {
+      order: {},
+      deleteOrderId: -1,
+      showDeleteDialog: false,
       products: [],
       selectedProductId: -1,
-      amount: 2,
-      ticket: 1,
+      amount: 1,
+      ticket: 0,
+      addOrderMutation: gql`mutation AddOrder($productId: Int!,$amount: Int!,$ticket: Int!){
+        addOrder(productId: $productId, amount: $amount, ticket: $ticket) { id }
+      }`,
+      deleteOrderMutation: gql`mutation DeleteOrder($orderId: Int!){
+        deleteOrder(orderId: $orderId) {
+          success
+        }
+      }`,
     };
   },
   computed: {
@@ -56,48 +168,13 @@ export default {
       return price < 0 ? 0 : price;
     },
   },
-  mounted() {
-    this.loadData();
-  },
-  methods: {
-    loadData() {
-      this.$store.commit('setLoading', { name: 'operation-team', value: true });
-      this.$http({
-        url: '/api/team',
-      }).then((res) => {
-        this.$store.commit('setLoading', { name: 'operation-team', value: false });
-        this.products = res.data.products;
-      }).catch((err) => {
-        this.$store.commit('setLoading', { name: 'operation-team', value: false });
-        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
-        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
-      });
-    },
-    addOrder() {
-      this.$store.commit('setLoading', { name: 'operation-order', value: false });
-      this.$http({
-        method: 'post',
-        url: '/team/order',
-        data: {
-          productId: this.selectedProductId,
-          amount: this.amount,
-          ticket: this.ticket,
-        },
-      }).then(() => {
-        this.$store.commit('setLoading', { name: 'operation-order', value: false });
-      }).catch((err) => {
-        this.$store.commit('setLoading', { name: 'operation-order', value: false });
-        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
-        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
-      });
-    },
-  },
 };
 </script>
 
 <style lang="scss" scoped>
   .operation {
     padding: 15px;
+    padding-bottom: 150px;
   }
 
   .forms {

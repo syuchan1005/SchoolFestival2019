@@ -1,6 +1,7 @@
 import Sequelize from 'sequelize';
 import debug from 'debug';
 import { parse as json2csv } from 'json2csv';
+import _ from 'lodash';
 
 const logger = debug('main:sql');
 
@@ -31,7 +32,26 @@ class Database {
           allowNull: false,
           unique: true,
         },
-        /* teamId */
+        studentNumber: {
+          type: Sequelize.STRING,
+          allowNull: false,
+          unique: true,
+        },
+      }),
+      userTeam: this.sequelize.define('user_team', {
+        id: {
+          type: Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true,
+        },
+        userId: {
+          type: Sequelize.INTEGER,
+          unique: 'user_team_unique',
+        },
+        teamId: {
+          type: Sequelize.INTEGER,
+          unique: 'user_team_unique',
+        },
       }),
       product: this.sequelize.define('product', {
         name: {
@@ -44,7 +64,11 @@ class Database {
           allowNull: false,
           unique: 'name-price',
         },
-        /* teamId */
+        teamId: {
+          type: Sequelize.INTEGER,
+          allowNull: false,
+          unique: 'name-price',
+        },
         /* deletedAt */
       }, { paranoid: true }),
       order: this.sequelize.define('order', {
@@ -60,8 +84,22 @@ class Database {
       }),
     };
 
-    this.models.user.belongsTo(this.models.team, { foreignKey: 'teamId' });
-    this.models.team.hasMany(this.models.user, { foreignKey: 'teamId' });
+    this.models.user.belongsToMany(this.models.team, {
+      through: {
+        model: this.models.userTeam,
+        unique: false,
+      },
+      foreignKey: 'userId',
+      constraints: false,
+    });
+    this.models.team.belongsToMany(this.models.user, {
+      through: {
+        model: this.models.userTeam,
+        unique: false,
+      },
+      foreignKey: 'teamId',
+      constraints: false,
+    });
 
     this.models.product.belongsTo(this.models.team, { foreignKey: 'teamId' });
     this.models.team.hasMany(this.models.product, { foreignKey: 'teamId' });
@@ -81,6 +119,13 @@ class Database {
   }
 
   async deleteUser(lineUserId) {
+    const user = await this.findUser(lineUserId);
+    const teams = await user.getTeams();
+    /* eslint-disable */
+    for (const team of teams) {
+      await user.removeTeam(team);
+    }
+    /* eslint-enable */
     return this.models.user.destroy({
       where: { lineUserId },
     });
@@ -89,49 +134,62 @@ class Database {
   /**
    * find or create user
    * @param lineUserId string
-   * @param teamName string
+   * @param studentNumber string
+   * @param teamNames Array<string>
    * @returns {Promise<[Sequelize.Model, Boolean]>} [model, isCreate]
    */
-  async findOrCreateUser(lineUserId, teamName) {
-    const user = await this.models.user.findOne({
-      where: { lineUserId },
-    });
+  async findOrCreateUser(lineUserId, studentNumber, teamNames) {
+    let user = await this.models.user.findOne({ where: { lineUserId } });
     if (user) return [user, false];
-    const team = await this.models.team.findOrCreate({
-      where: { name: teamName },
-      defaults: { name: teamName },
-    }).then(models => models[0]);
-    return await this.models.user.create({
-      lineUserId,
-      teamId: team.get('id'),
-    }).then(model => [model, true]);
+    user = await this.models.user.create({ lineUserId, studentNumber });
+    /* eslint-disable */
+    for (const name of teamNames) {
+      const model = await this.models.team.findOrCreate({
+        where: { name }, defaults: { name },
+      }).then(models => models[0]);
+      user.addTeam(model);
+    }
+    /* eslint-enable */
+    return Promise.resolve([user, true]);
   }
 
   /**
-   * update or create user
+   * update user teams
    * @param lineUserId string
-   * @param teamName string
+   * @param teamNames Array<string>
    * @returns {Promise<[Sequelize.Model, Boolean]>} [model, isCreate]
    */
-  async updateOrCreateUser(lineUserId, teamName) {
-    const user = await this.findOrCreateUser(lineUserId, teamName);
-    if (user[1]) return user;
-
-    const team = await this.models.team.findOrCreate({
-      where: { name: teamName },
-      defaults: { name: teamName },
-    }).then(models => models[0]);
-
-    await this.models.user.update({ teamId: team.get('id') }, { where: { lineUserId } });
-
-    return await this.models.user.findOne({
+  async updateUserTeams(lineUserId, teamNames) {
+    const user = await this.findUser(lineUserId);
+    const joinedTeams = await user.getTeams();
+    /* eslint-disable */
+    /* 削除したチームをDBから削除 */
+    const deleteTeams = _.difference(joinedTeams.map(v => v.get('name')), teamNames);
+    for (const name of deleteTeams) {
+      const team = joinedTeams.find(v => v.get('name') === name);
+      await user.removeTeam(team);
+    }
+    /* 追加されたチームをDBに追加 */
+    const addedTeam = _.difference(teamNames, joinedTeams.map(v => v.get('name')));
+    for (const name of addedTeam) {
+      const team = await this.models.team.findOrCreate({ where: { name }, defaults: { name } });
+      await user.addTeam(team[0]);
+    }
+    /* eslint-enable */
+    return this.models.user.findOne({
       where: { lineUserId },
     }).then(model => [model, false]);
   }
 
-  async getTeamData(teamId) {
-    return await this.models.team.findOne({
-      attributes: ['name'],
+  findTeam(teamId) {
+    return this.models.team.findOne({
+      where: { id: teamId },
+    });
+  }
+
+  getTeamData(teamId) {
+    return this.models.team.findOne({
+      attributes: ['id', 'name'],
       where: { id: teamId },
       include: [{
         model: this.models.product,
@@ -140,23 +198,24 @@ class Database {
     });
   }
 
-  async findProducts(teamId) {
-    return await this.models.product.findAll({
+  findProducts(teamId) {
+    return this.models.product.findAll({
       where: { teamId },
     });
   }
 
   async addProduct(name, price, teamId) {
-    return await this.models.product.upsert({
+    await this.models.product.upsert({
       name,
       price,
       teamId,
       deletedAt: null,
-    }, { returning: true, where: { name, price } });
+    }, { where: { name, price, teamId } });
+    return this.models.product.findOne({ where: { name, price, teamId } });
   }
 
-  async deleteProduct(productId, teamId) {
-    return await this.models.product.destroy({
+  deleteProduct(productId, teamId) {
+    return this.models.product.destroy({
       where: {
         id: productId,
         teamId,
@@ -164,36 +223,36 @@ class Database {
     });
   }
 
-  async findProduct(productId) {
-    return await this.models.product.findOne({
+  findProduct(productId) {
+    return this.models.product.findOne({
       where: { id: productId },
     });
   }
 
-  async addOrder(productId, amount, ticket) {
-    return await this.models.order.create({
+  addOrder(productId, amount, ticket) {
+    return this.models.order.create({
       productId,
       amount,
       ticket,
     });
   }
 
-  async findLatestOrder(teamId) {
-    return await this.models.order.findOne({
+  findLatestOrder(teamId) {
+    return this.models.order.findOne({
       order: [['updatedAt', 'DESC']],
       include: [{ model: this.models.product, required: true, where: { teamId } }],
     });
   }
 
-  async deleteOrder(orderId, teamId) {
-    return await this.models.order.destroy({
+  deleteOrder(orderId, teamId) {
+    return this.models.order.destroy({
       where: { id: orderId },
       include: [{ model: this.models.product, required: true, where: { teamId } }],
     });
   }
 
-  async getTotal(teamId) {
-    return await this.sequelize.query(
+  getTotal(teamId) {
+    return this.sequelize.query(
       `SELECT name, price, amount, ticket, amount * price as subtotal
             FROM products
             INNER JOIN (SELECT SUM(amount) as amount, SUM(ticket) as ticket, productId FROM orders GROUP BY productId) AS orders
@@ -205,26 +264,21 @@ class Database {
   }
 
   /**
-   * @param teamId Number
+   * @param productId Number
    * @param date string format(YYYY-MM-DD)
    * @param startTime string format(HH:mm)
    * @param endTime string format(HH:mm)
    * @param minutes number
    * @returns {Promise<Array<Object>>}
    */
-  async getInfo(teamId, date, startTime, endTime, minutes) {
-    const sqlResult = await this.sequelize.query(
-      `SELECT
-                   productId,
-                   p.name || ' (' || p.price || '円)' AS name,
-                   strftime('%H:%M',
-                     strftime('%s', orders.createdAt) / (60 * ${minutes}) * (60 * ${minutes}),
+  getInfo(productId, date, startTime, endTime, minutes) {
+    return this.sequelize.query(
+      `SELECT  strftime('%H:%M', strftime('%s', orders.createdAt) / (60 * ${minutes}) * (60 * ${minutes}),
                      'unixepoch', 'localtime') AS time,
-                   SUM(amount) AS amount,
-                   SUM(amount) * p.price AS subtotal
-            FROM orders
-                   INNER JOIN products p on orders.productId = p.id AND p.teamId = ${teamId}
-            WHERE strftime('%Y-%m-%d %H:%M:%S', orders.createdAt, 'localtime') >= '${date} ${startTime}:00'
+                   SUM(amount) AS amount
+            FROM orders INNER JOIN products p on orders.productId = p.id
+            WHERE productId = ${productId}
+              AND strftime('%Y-%m-%d %H:%M:%S', orders.createdAt, 'localtime') >= '${date} ${startTime}:00'
               AND strftime('%Y-%m-%d %H:%M:%S', orders.createdAt, 'localtime') <= '${date} ${endTime}:00'
               GROUP BY productId , strftime('%s', orders.createdAt, 'localtime') / (60 * ${minutes})
             ORDER BY productId ASC`,
@@ -232,41 +286,20 @@ class Database {
         type: Sequelize.QueryTypes.SELECT,
       },
     );
-
-    const result = [];
-    let tmp = null;
-    let id = -1;
-    sqlResult.forEach((model) => {
-      if (id !== model.productId) {
-        if (id !== -1) result.push(tmp);
-        id = model.productId;
-        tmp = {
-          id,
-          name: model.name,
-          time: {},
-        };
-      }
-      tmp.time[model.time] = {
-        amount: model.amount,
-        subtotal: model.subtotal,
-      };
-    });
-    if (tmp) result.push(tmp);
-    return result;
   }
 
   async getCSVData(teamId) {
     const data = await this.sequelize.query(`
       SELECT
-             t.name                                                       as teamName,
-             orders.id                                                    as orderId,
-             amount,
-             ticket,
-             productId,
-             p.name,
-             price,
-             amount * price                                               as subtotal,
-             strftime('%Y-%m-%d %H:%M:%f', orders.createdAt, 'localtime') as createdAt
+        t.name                                                       as teamName,
+        orders.id                                                    as orderId,
+        amount,
+        ticket,
+        productId,
+        p.name,
+        price,
+        amount * price                                               as subtotal,
+        strftime('%Y-%m-%d %H:%M:%f', orders.createdAt, 'localtime') as createdAt
       FROM orders
              INNER JOIN products p on orders.productId = p.id
              INNER JOIN teams t on p.teamId = t.id
@@ -274,6 +307,53 @@ class Database {
       type: Sequelize.QueryTypes.SELECT,
     });
     return json2csv(data);
+  }
+
+  async hasProduct(userId, productId) {
+    const data = await this.models.user.findOne({
+      attributes: [],
+      where: { id: userId },
+      include: [{
+        attributes: [],
+        model: this.models.team,
+        required: true,
+        include: [{
+          attributes: [],
+          model: this.models.product,
+          where: { id: productId },
+          required: true,
+        }],
+      }],
+    });
+    return !!data;
+  }
+
+  async hasOrder(userId, orderId) {
+    const order = await this.models.order.findOne({ where: { id: orderId } });
+    if (!order) return false;
+    return this.hasProduct(userId, order.productId);
+  }
+
+  async getTeamOrders(teamId) {
+    const orders = await this.models.order.findAll({
+      include: [{
+        model: this.models.product,
+        paranoid: false,
+        required: true,
+        include: [{
+          model: this.models.team,
+          required: true,
+          where: { id: teamId },
+        }],
+      }],
+      order: [['createdAt', 'DESC']],
+    });
+    return {
+      products: orders
+        .filter((o, i) => orders.map(v => v.productId).indexOf(o.productId) === i)
+        .map(o => o.product),
+      orders,
+    };
   }
 }
 

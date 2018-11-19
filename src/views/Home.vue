@@ -1,91 +1,46 @@
 <template>
   <div class="home">
-    <v-btn color="#00B900" dark large href="/line/auth" class="login-btn">
-      <v-icon dark size="155px">fab fa-line</v-icon>
-      <div>Login</div>
-    </v-btn>
-    <v-btn color="#0068b9" dark large :href="botURL" style="z-index:1">
-      <v-icon dark left>fa-robot</v-icon>
-      Add LineBot
-    </v-btn>
+    <v-btn-toggle class="calendar-toggle" v-model="type">
+      <v-btn flat value="all">
+        全体日程
+      </v-btn>
+      <v-btn value="shift">
+        シフト
+      </v-btn>
+    </v-btn-toggle>
 
-    <div class="alert">
-      <v-alert v-model="showFailedAlert" type="error" dismissible>
-        {{ failedMessage }}
-      </v-alert>
-    </div>
+    <v-card>
+      ここにタイムラインが入る予定だけどいい感じのがないから保留
+    </v-card>
+
+    <v-card>
+      タイムラインの予定クリックで文言とかファイルとかでるところ
+    </v-card>
   </div>
 </template>
 
 <script>
-import qs from 'qs';
 
 export default {
   name: 'Home',
-  title: 'School Festival 2019',
   data() {
     return {
-      failedMessage: '',
-      showFailedAlert: false,
-      botURL: process.env.VUE_APP_BOT_URL,
+      type: 'all',
     };
-  },
-  mounted() {
-    const query = qs.parse(window.location.search.substring(1));
-    if (!query.state) {
-      this.$http({
-        url: '/api',
-      }).then((res) => {
-        if (res.status === 200) this.$router.push('/info');
-      }).catch((err) => {
-        if (err.response.status === 412) {
-          this.failedMessage = 'Botから設定が必要です';
-          this.showFailedAlert = true;
-        }
-      });
-    } else if (query.state === 'failed') {
-      this.failedMessage = 'ログインに失敗しました';
-      this.showFailedAlert = true;
-    } else if (query.state === 'no bot') {
-      this.failedMessage = 'Botから設定が必要です';
-      this.showFailedAlert = true;
-    }
   },
 };
 </script>
 
-<style>
-  .login-btn .v-btn__content {
-    flex-direction: column !important;
-    font-size: 1.5rem;
-  }
-</style>
-
 <style lang="scss" scoped>
   .home {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    padding: 10px;
   }
 
-  .v-btn {
+  .calendar-toggle {
     margin: 10px;
   }
 
-  .login-btn {
-    z-index: 1;
-    height: auto;
-  }
-
-  .alert {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-end;
+  .v-card + .v-card {
+    margin-top: 10px;
   }
 </style>

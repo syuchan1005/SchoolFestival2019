@@ -22,7 +22,6 @@
               slot="activator"
               v-model="chartData.date"
               label="日付"
-              prepend-icon="event"
               readonly hide-details/>
             <v-date-picker v-model="chartData.date" @input="chartData.showDatePicker = false"/>
           </v-menu>
@@ -71,13 +70,14 @@
       Download csv
     </v-btn>
 
-    <v-btn fab dark class="refresh-btn green" @click="loadData">
+    <v-btn fab dark class="refresh-btn green" @click="$apollo.queries.data.refetch()">
       <v-icon>refresh</v-icon>
     </v-btn>
   </div>
 </template>
 
-<script>
+<script>import gql from 'graphql-tag';
+
 import moment from 'moment';
 import LineChart from '../components/LineChart';
 
@@ -85,6 +85,48 @@ export default {
   name: 'Information',
   title: 'School Festival 2019 (Information)',
   components: { LineChart },
+  apollo: {
+    data: {
+      query: gql`query Team($teamId: Int!,$date: Date!,$startTime: Time,$endTime: Time,$minutes: Int) {
+        team(teamId: $teamId) {
+          total {
+            sum
+            amount
+            ticket
+          }
+          products {
+            name
+            price
+            timeInfo(date:$date,startTime:$startTime,endTime:$endTime,minutes:$minutes) {
+              time
+              amount
+            }
+          }
+        }
+      }`,
+      variables() {
+        return {
+          teamId: this.$store.state.teamId,
+          date: this.chartData.date,
+          startTime: `${this.chartData.startTime}:00`,
+          endTime: `${this.chartData.endTime}:00`,
+          minutes: this.chartData.minutes,
+        };
+      },
+      manual: true,
+      result({ data }) {
+        this.total = data.team.total;
+        this.info = data.team.products.map(v => ({
+          name: `${v.name} (${v.price}円)`,
+          time: v.timeInfo.reduce((prev, { time, amount }) => {
+            // eslint-disable-next-line no-param-reassign
+            prev[time] = { amount };
+            return prev;
+          }, {}),
+        }));
+      },
+    },
+  },
   data() {
     return {
       total: {
@@ -160,54 +202,7 @@ export default {
       };
     },
   },
-  watch: {
-    chartData: {
-      deep: true,
-      handler() {
-        this.loadInfo();
-      },
-    },
-  },
-  mounted() {
-    this.loadData();
-  },
   methods: {
-    loadData() {
-      this.loadTotal();
-      this.loadInfo();
-    },
-    loadTotal() {
-      this.$store.commit('setLoading', { name: 'info-total', value: true });
-      this.$http({
-        url: '/api/total',
-      }).then((res) => {
-        this.$store.commit('setLoading', { name: 'info-total', value: false });
-        this.total = res.data;
-      }).catch((err) => {
-        this.$store.commit('setLoading', { name: 'info-total', value: false });
-        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
-        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
-      });
-    },
-    loadInfo() {
-      this.$store.commit('setLoading', { name: 'info-info', value: true });
-      this.$http({
-        url: '/api/info',
-        params: {
-          date: this.chartData.date,
-          startTime: `${this.chartData.startTime}:00`,
-          endTime: `${this.chartData.endTime}:00`,
-          minutes: this.chartData.minutes,
-        },
-      }).then((res) => {
-        this.$store.commit('setLoading', { name: 'info-info', value: false });
-        this.info = res.data;
-      }).catch((err) => {
-        this.$store.commit('setLoading', { name: 'info-info', value: false });
-        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
-        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
-      });
-    },
     downloadCSV() {
       this.$http({
         url: '/api/csv',
@@ -241,6 +236,7 @@ export default {
 <style lang="scss" scoped>
   .information {
     padding: 10px;
+    padding-bottom: 150px;
   }
 
   .total {

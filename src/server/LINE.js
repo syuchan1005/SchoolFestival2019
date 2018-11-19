@@ -6,6 +6,9 @@ class LINE {
     return axios.create({
       method: 'POST',
       baseURL: 'https://api.line.me/v2/bot',
+      headers: {
+        Authorization: `Bearer ${Config.MESSAGING_API.LINE_ACCESS_TOKEN}`,
+      },
     });
   }
 
@@ -337,6 +340,18 @@ class LINE {
       },
     };
   }
+
+  static getContent(messageId) {
+    console.log(messageId);
+    return LINE.$http({
+      method: 'GET',
+      url: `/message/${messageId}/content`,
+      responseType: 'arraybuffer',
+      headers: {
+        'Content-Type': 'image/jpeg',
+      },
+    });
+  }
 }
 
 LINE.Builder = class Builder {
@@ -423,9 +438,6 @@ LINE.Builder = class Builder {
   send() {
     return LINE.$http({
       url: '/message/reply',
-      headers: {
-        Authorization: `Bearer ${Config.MESSAGING_API.LINE_ACCESS_TOKEN}`,
-      },
       data: this,
     }).catch(v => console.error(v.response.data)); // eslint-disable-line no-console
   }

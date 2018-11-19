@@ -166,7 +166,7 @@ const actions = {
           const builder = new LINE.Builder(event.replyToken);
           if (event.message.text.trim() === 'はい') {
             if (ctx.$session.exist) {
-              await Database.updateOrCreateUser(event.source.userId, ctx.$session.teamName);
+              await Database.updateUserTeams(event.source.userId, ctx.$session.teamName);
             } else {
               await Database.findOrCreateUser(event.source.userId, ctx.$session.teamName);
             }
@@ -335,6 +335,20 @@ const actions = {
 class LINEMiddleware {
   constructor() {
     this.sessions = {};
+    this.registrationCodeChars = '0123456789';
+    this.registrationQueue = {};
+  }
+
+  generateRegistrationCode(len = 4) {
+    const cl = this.registrationCodeChars.length;
+    let r = '';
+    for (let i = 0; i < len; i += 1) {
+      r += this.registrationCodeChars[Math.floor(Math.random() * cl)];
+    }
+    if (this.registrationQueue[r]) {
+      return this.generateRegistrationCode(len);
+    }
+    return r;
   }
 
   deleteSession(ctx) {
@@ -350,6 +364,18 @@ class LINEMiddleware {
         const event = ctx.request.body.events[0];
         /* ユーザーからのメッセージのみ反応する. フォロー解除(ブロック) された場合はユーザーデータを削除 */
         if (event.type === 'message' && event.source.type === 'user') {
+          const user = await Database.findUser(event.source.userId);
+          if (!user) {
+            const text = event.message.text.trim();
+            const queueElement = this.registrationQueue[text];
+            if (queueElement && queueElement.resolve) {
+              queueElement.resolve(event.source.userId);
+              new LINE.Builder(event.replyToken)
+                .addTextMessage('認証完了しました')
+                .send();
+            }
+            return;
+          }
           /* sessionがある or キーワードだったら処理続行, 当てはまらない場合はRichMenuのImagemapを送信 */
           if (this.sessions[event.source.userId] || (event.message.type === 'text'
             && Object.values(actions).map(a => a.keyword).includes(event.message.text))) {
@@ -366,7 +392,6 @@ class LINEMiddleware {
             }
             ctx.$session = this.sessions[event.source.userId];
             if (actions[ctx.$session.action].auth) {
-              const user = await Database.findUser(event.source.userId);
               if (user) {
                 ctx.$user = user;
                 await actions[ctx.$session.action].handler(ctx, event, this);

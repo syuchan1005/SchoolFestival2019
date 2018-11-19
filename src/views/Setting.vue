@@ -1,19 +1,29 @@
 <template>
   <div class="setting">
     <v-card class="teamname-field">
-      <v-text-field label="団体名" v-model="teamNameModel" hide-details/>
+      <v-combobox ref="joinTeamForm" chips clearable multiple
+                  label="参加団体" :items="teams" v-model="joinedTeamsModel"
+                  :rules="[v => v.length !== 0 || '最低一団体を選択する必要があります']">
+        <template slot="selection" slot-scope="data">
+          <v-chip close :selected="data.selected" @input="removeChip(data)">
+            <strong>{{ data.item }}</strong>
+          </v-chip>
+        </template>
+      </v-combobox>
       <v-btn class="primary save-btn" @click="() => {
-        if (this.teamNameModel.length !== 0) this.showChangeDialog = true;
-      }">Save</v-btn>
+        if ($refs.joinTeamForm.validate()) this.showChangeDialog = true;
+      }">Save
+      </v-btn>
     </v-card>
 
     <v-card>
-      <div class="overlay" v-if="teamName !== teamNameModel">
-        <div>団体名が変更されているため編集できません</div>
-      </div>
       <v-card-title>
         商品
         <v-spacer></v-spacer>
+        <v-select v-model="selectProductTeamId" :items="joinedTeams"
+                  label="団体" item-text="name" item-value="id"
+                  :disabled="joinedTeams.length === 1" hide-details box
+                  style="max-width: 200px;width: 200px"/>
         <v-btn icon @click="showAddDialog = true">
           <v-icon>add</v-icon>
         </v-btn>
@@ -36,7 +46,7 @@
       </v-data-table>
     </v-card>
 
-    <v-btn fab dark class="refresh-btn green" @click="loadData">
+    <v-btn fab dark class="refresh-btn green" @click="$apollo.queries.data.refetch()">
       <v-icon>refresh</v-icon>
     </v-btn>
 
@@ -49,11 +59,19 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="blue darken-1" flat @click.native="showAddDialog = false">キャンセル</v-btn>
-          <v-btn color="green darken-1" flat
-                 @click.native="() => { addProduct(); showAddDialog = false; }">
-            追加する
-          </v-btn>
+          <apollo-mutation :mutation="addProductMutation" :variables="{ teamId: $store.state.teamId,
+                           name: addProductItem.name, price: parseInt(addProductItem.price, 10) }"
+                           @done="() => {
+                             this.showAddDialog = false;
+                             this.$apollo.queries.products.refetch();
+                           }">
+            <template slot-scope="{ mutate, loading }">
+              <v-btn color="blue darken-1" flat @click.native="showAddDialog = false">キャンセル</v-btn>
+              <v-btn color="green darken-1" flat :disabled="loading" @click.native="mutate()">
+                追加する
+              </v-btn>
+            </template>
+          </apollo-mutation>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -64,26 +82,46 @@
 
         <v-card-actions>
           <v-spacer></v-spacer>
+          <apollo-mutation :mutation="deleteProductMutation"
+                           :variables="{ productId: deleteProductId }"
+                           @done="() => {
+                             this.showDeleteDialog = false;
+                             this.$apollo.queries.products.refetch();
+                           }">
+            <template slot-scope="{ mutate, loading }">
+              <v-btn color="blue darken-1" flat :disabled="loading"
+                     @click="showDeleteDialog = false">削除しない
+              </v-btn>
 
-          <v-btn color="blue darken-1" flat @click="showDeleteDialog = false">削除しない</v-btn>
-
-          <v-btn color="green darken-1" flat
-                 @click="() => {deleteProduct();showDeleteDialog = false}">削除する</v-btn>
+              <v-btn color="green darken-1" flat :disabled="loading"
+                     @click="mutate()">削除する
+              </v-btn>
+            </template>
+          </apollo-mutation>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="showChangeDialog" persistent max-width="250px">
       <v-card>
-        <v-card-title>団体名を{{teamNameModel}}に変更しますか?</v-card-title>
+        <v-card-title>参加団体を{{joinedTeamsModel.join(' ,')}}に変更しますか?</v-card-title>
 
         <v-card-actions>
           <v-spacer></v-spacer>
-
-          <v-btn color="blue darken-1" flat @click="showChangeDialog = false">変更しない</v-btn>
-
-          <v-btn color="green darken-1" flat
-                 @click="() => { changeTeamName(); this.showChangeDialog = false; }">変更する</v-btn>
+          <apollo-mutation :mutation="updateTeamMutation" :variables="{ teams: joinedTeamsModel }"
+                           @done="() => {
+                             this.showChangeDialog = false;
+                             this.$apollo.queries.data.refetch();
+                           }">
+            <template slot-scope="{ mutate, loading }">
+              <v-btn color="blue darken-1" flat :disabled="loading"
+                     @click="showChangeDialog = false">変更しない
+              </v-btn>
+              <v-btn color="green darken-1" flat :disabled="loading" @click="mutate()">
+                変更する
+              </v-btn>
+            </template>
+          </apollo-mutation>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -91,92 +129,78 @@
 </template>
 
 <script>
+import gql from 'graphql-tag';
+
 export default {
   name: 'Setting',
+  apollo: {
+    products: {
+      query: gql`query Products($teamId: Int!) {
+        team(teamId: $teamId) {
+          products {
+            id
+            name
+            price
+          }
+        }
+      }`,
+      variables() {
+        return {
+          teamId: this.selectProductTeamId,
+        };
+      },
+      skip() {
+        return this.selectProductTeamId === -1;
+      },
+      manual: true,
+      result({ data }) {
+        this.products = data.team.products;
+      },
+    },
+    data: {
+      query: gql`{user{teams{id name}}teams{name}}`,
+      manual: true,
+      result({ data }) {
+        this.joinedTeams = data.user.teams;
+        this.joinedTeamsModel = this.joinedTeams.map(v => v.name);
+        this.teams = data.teams.map(v => v.name);
+        if (this.joinedTeams.length >= 1) {
+          this.selectProductTeamId = this.joinedTeams[0].id;
+        }
+      },
+    },
+  },
   data() {
     return {
-      teamName: '',
-      teamNameModel: '',
-      products: [],
       showAddDialog: false,
       addProductItem: {
         name: '',
         price: 0,
       },
       showDeleteDialog: false,
-      deleteProductId: -1,
       showChangeDialog: false,
+      deleteProductId: -1,
+
+      joinedTeams: [],
+      joinedTeamsModel: [],
+      teams: [],
+      selectProductTeamId: -1,
+      products: [],
+      updateTeamMutation: gql`mutation UpdateTeam($teams: [String!]!){
+        updateUserTeams(teams: $teams) { id }
+      }`,
+      addProductMutation: gql`mutation AddProduct($teamId: Int!, $name: String!, $price: Int!){
+        addProduct(teamId: $teamId, name: $name, price: $price) { id }
+      }`,
+      deleteProductMutation: gql`mutation DeleteProduct($productId: Int!) {
+        deleteProduct(productId: $productId) { success }
+      }`,
     };
   },
-  mounted() {
-    this.loadData();
-  },
   methods: {
-    loadData() {
-      this.$store.commit('setLoading', { name: 'setting-team', value: true });
-      this.$http({
-        url: '/api/team',
-      }).then((res) => {
-        this.$store.commit('setLoading', { name: 'setting-team', value: false });
-        this.teamName = res.data.name;
-        this.teamNameModel = res.data.name;
-        this.products = res.data.products;
-      }).catch((err) => {
-        this.$store.commit('setLoading', { name: 'setting-team', value: false });
-        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
-        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
-      });
-    },
-    changeTeamName() {
-      this.$store.commit('setLoading', { name: 'setting-team-name', value: true });
-      this.$http({
-        method: 'post',
-        url: '/api/team/name',
-        data: {
-          name: this.teamNameModel,
-        },
-      }).then(() => {
-        this.$store.commit('setLoading', { name: 'setting-team-name', value: false });
-        this.loadData();
-      }).catch((err) => {
-        this.$store.commit('setLoading', { name: 'setting-team-name', value: false });
-        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
-        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
-      });
-    },
-    addProduct() {
-      if (this.addProductItem.name.length === 0) return;
-      this.$store.commit('setLoading', { name: 'setting-product', value: true });
-      this.$http({
-        method: 'post',
-        url: '/api/team/product',
-        data: this.addProductItem,
-      }).then(() => {
-        this.$store.commit('setLoading', { name: 'setting-product', value: false });
-        this.loadData();
-        this.addProductItem = {
-          name: '',
-          price: 0,
-        };
-      }).catch((err) => {
-        this.$store.commit('setLoading', { name: 'setting-product', value: false });
-        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
-        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
-      });
-    },
-    deleteProduct() {
-      this.$store.commit('setLoading', { name: 'setting-product-delete', value: true });
-      this.$http({
-        method: 'delete',
-        url: `/api/team/product/${this.deleteProductId}`,
-      }).then(() => {
-        this.$store.commit('setLoading', { name: 'setting-product-delete', value: false });
-        this.loadData();
-      }).catch((err) => {
-        this.$store.commit('setLoading', { name: 'setting-product-delete', value: false });
-        if (err.response.status === 401) this.$router.push({ name: 'home', params: { state: 'failed' } });
-        else if (err.response.status === 412) this.$router.push({ name: 'home', params: { state: 'no bot' } });
-      });
+    removeChip(chip) {
+      this.joinedTeamsModel.splice(this.joinedTeamsModel.indexOf(chip), 1);
+      this.joinedTeamsModel = [...this.joinedTeamsModel];
     },
   },
 };
@@ -185,9 +209,11 @@ export default {
 <style lang="scss" scoped>
   .setting {
     padding: 10px;
+    padding-bottom: 150px;
 
     .teamname-field {
       display: flex;
+      align-items: center;
       padding: 10px;
 
       .save-btn {

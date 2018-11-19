@@ -1,37 +1,113 @@
 <template>
   <v-app>
-    <div class="loading" v-show="isLoading"></div>
+    <div class="loading" v-show="isLoading || $apollo.loading"></div>
 
     <v-toolbar color="green" dark tabs v-show="$route.path !== '/'">
       <v-toolbar-title>School Festival 2019</v-toolbar-title>
       <v-spacer/>
-      <v-btn class="blue darken-1" href="/line/logout">logout</v-btn>
+      <v-select v-model="teamId" :items="teams" item-text="name" item-value="id"
+                :disabled="teams.length === 1" label="団体" hide-details box
+                style="max-width: 200px;width: 200px"/>
+      <v-icon @click="$apollo.queries.teams.refetch()" style="margin: 0 20px 0 10px">
+        refresh
+      </v-icon>
+      <v-btn class="blue darken-1" href="/logout">logout</v-btn>
 
       <v-tabs slot="extension" grow color="green" slider-color="yellow">
-        <v-tab v-for="name in pages" :key="name" :to="name">{{ name }}</v-tab>
+        <v-tab v-for="section in sections" :key="section.label" :to="section.to">
+          {{ section.label }}
+        </v-tab>
       </v-tabs>
     </v-toolbar>
 
     <v-content>
-      <keep-alive>
-        <router-view/>
-      </keep-alive>
+      <router-view/>
+
+      <v-bottom-nav :active.sync="navActive" :value="true" absolute color="transparent"
+                    v-if="$route.path.startsWith('/register')">
+        <v-btn v-for="page in pages" :key="page.label" flat :color="page.color" :value="page.to">
+          <span>{{ page.label }}</span>
+          <v-icon>{{ page.icon }}</v-icon>
+        </v-btn>
+      </v-bottom-nav>
     </v-content>
   </v-app>
 </template>
 
 <script>
+import gql from 'graphql-tag';
 import { mapGetters } from 'vuex';
 
 export default {
   name: 'App',
+  apollo: {
+    teams: {
+      query: gql`{
+        user {
+          teams {
+            id
+            name
+          }
+        }
+      }`,
+      manual: true,
+      result({ data }) {
+        this.teams = data.user.teams;
+      },
+    },
+  },
   data() {
     return {
-      pages: ['info', 'operation', 'setting'],
+      sections: [
+        {
+          label: 'home',
+          to: '/home',
+        },
+        {
+          label: 'register',
+          to: '/register',
+        },
+      ],
+      pages: [
+        {
+          color: 'blue',
+          label: 'Info',
+          icon: 'info',
+          to: '/register/info',
+        }, {
+          color: 'orange',
+          label: 'Operation',
+          icon: 'fa-cart-plus',
+          to: '/register/operation',
+        }, {
+          color: 'green',
+          label: 'Setting',
+          icon: 'settings',
+          to: '/register/setting',
+        },
+      ],
+      teams: [],
     };
   },
   computed: {
     ...mapGetters(['isLoading']),
+    // ...mapState(['teams']),
+    teamId: {
+      get() {
+        return this.$store.state.teamId;
+      },
+      set(val) {
+        this.$store.commit('setTeamId', val);
+      },
+    },
+    navActive: {
+      get() {
+        return this.$route.path === '/register' ? '/register/info' : this.$route.path;
+      },
+      set(val) {
+        this.$router.push(val);
+      },
+    },
   },
 };
 </script>
@@ -63,7 +139,7 @@ export default {
 
   .v-btn.v-btn--floating.refresh-btn {
     position: absolute;
-    bottom: 16px;
+    bottom: 64px;
     right: 16px;
   }
 </style>

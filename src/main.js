@@ -1,5 +1,9 @@
 import Vue from 'vue';
+
 import axios from 'axios';
+import ApolloClient from 'apollo-boost';
+import VueApollo from 'vue-apollo';
+
 import './plugins/vuetify';
 import App from './App.vue';
 import router from './router';
@@ -18,10 +22,33 @@ Vue.mixin({
   },
 });
 
-Vue.prototype.$http = axios;
+let apolloClient;
+if (process.env.NODE_ENV !== 'production' && window.location.hostname === 'localhost') {
+  const baseURL = 'http://localhost:8080';
+  Vue.prototype.$http = axios.create({
+    baseURL,
+  });
+  apolloClient = new ApolloClient({ uri: `${baseURL}/graphql` });
+} else {
+  Vue.prototype.$http = axios;
+  apolloClient = new ApolloClient({ uri: `${window.location.origin}/graphql` });
+}
+Vue.prototype.$http.defaults.withCredentials = true;
+Vue.prototype.$http.interceptors.request.use((config) => {
+  if (store.state.teamId !== -1) {
+    // eslint-disable-next-line no-param-reassign
+    config.params = {
+      ...config.params,
+      teamId: store.state.teamId,
+    };
+  }
+  return config;
+});
+Vue.use(VueApollo);
 
 new Vue({
   router,
   store,
+  apolloProvider: new VueApollo({ defaultClient: apolloClient }),
   render: h => h(App),
 }).$mount('#app');
