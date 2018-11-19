@@ -1,93 +1,65 @@
 import moment from 'moment';
 
+import Config from '../../config';
 import LINE from './LINE';
 import Database from './Database';
 
 const actions = {
   addOrder: {
-    auth: true,
     keyword: '注文を追加',
-    async handler(ctx, event, middleware) {
-      const builder = new LINE.Builder(event.replyToken);
-      switch (ctx.$session.state) {
-        case 'askProduct': {
-          const productId = parseInt(event.message.text.trim().match(/ID:\s*(\d+)\s*を選択/)[1], 10);
-          ctx.$session.product = await Database.findProduct(productId);
-          ctx.$session.state = 'askAmount';
+    state: {
+      async askProduct(ctx, builder, event) {
+        const productId = parseInt(event.message.text.trim().match(/ID:\s*(\d+)\s*を選択/)[1], 10);
+        ctx.$session.product = await Database.findProduct(productId);
+        ctx.$session.state = 'askAmount';
+        builder
+          .addTextMessage('個数を教えてください')
+          .addKeyPadWithCancel();
+      },
+      async askAmount(ctx, builder, event) {
+        const amount = parseInt(event.message.text, 10);
+        if (!Number.isInteger(amount)) {
           builder
-            .addTextMessage('個数を教えてください')
-            .addKeyPadWithCancel()
-            .send();
-          break;
+            .addTextMessage('数字ではないか大きすぎます.\nもう一度入力してください');
+        } else {
+          ctx.$session.amount = amount;
+          ctx.$session.state = 'askTicket';
+          builder
+            .addTextMessage('食券は何枚ありますか?')
+            .addKeyPadWithZero();
         }
-        case 'askAmount': {
-          const amount = parseInt(event.message.text, 10);
-          if (!Number.isInteger(amount)) {
-            builder
-              .addTextMessage('数字ではないか大きすぎます.\nもう一度入力してください')
-              .send();
-          } else {
-            ctx.$session.amount = amount;
-            ctx.$session.state = 'askTicket';
-            builder
-              .addTextMessage('食券は何枚ありますか?')
-              .addKeyPadWithZero()
-              .send();
-          }
-          break;
+      },
+      async askTicket(ctx, builder, event) {
+        const ticket = parseInt(event.message.text, 10);
+        if (!Number.isInteger(ticket)) {
+          builder
+            .addTextMessage('数字ではないか大きすぎます.\nもう一度入力してください');
+        } else {
+          ctx.$session.ticket = ticket;
+          ctx.$session.state = 'confirmAdd';
+          builder
+            .addConfirm(`商品: ${ctx.$session.product.get('name')} (${ctx.$session.product.get('price')}円)\n個数: ${ctx.$session.amount}個\nを追加しますか?`,
+              '追加する', '追加しない');
         }
-        case 'askTicket': {
-          const ticket = parseInt(event.message.text, 10);
-          if (!Number.isInteger(ticket)) {
-            builder
-              .addTextMessage('数字ではないか大きすぎます.\nもう一度入力してください')
-              .send();
-          } else {
-            ctx.$session.ticket = ticket;
-            ctx.$session.state = 'confirmAdd';
-            builder
-              .addConfirm(`商品: ${ctx.$session.product.get('name')} (${ctx.$session.product.get('price')}円)\n個数: ${ctx.$session.amount}個\nを追加しますか?`,
-                '追加する', '追加しない')
-              .send();
-          }
-          break;
+      },
+      async confirmAdd(ctx, builder, event, middleware) {
+        if (event.message.text.trim() === '追加する') {
+          await Database.addOrder(ctx.$session.product.get('id'), ctx.$session.amount, ctx.$session.ticket);
+          builder.addTextMessage('追加しました.');
+        } else {
+          builder.addTextMessage('追加をキャンセルしました.');
         }
-        case 'confirmAdd': {
-          if (event.message.text.trim() === '追加する') {
-            await Database.addOrder(ctx.$session.product.get('id'), ctx.$session.amount, ctx.$session.ticket);
-            builder.addTextMessage('追加しました.');
-          } else {
-            builder.addTextMessage('追加をキャンセルしました.');
-          }
-          middleware.deleteSession(ctx);
-          builder.addTextMessage('何をしますか?')
-            .addRichMenu()
-            .send();
-          break;
-        }
-        default: {
-          const teams = await ctx.$user.getTeams();
-          if (teams.length !== 1) {
-            builder
-              .addTextMessage('団体を選択してください')
-              .addTeamCarousel(teams)
-              .send();
-            break;
-          } else {
-            ctx.$session.teamId = teams[0].id;
-            builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
-          }
-        }
-        // eslint-disable-next-line no-fallthrought
-        case 'selectTeam': {
-          if (!ctx.$session.teamId) {
-            ctx.$session.teamId = parseInt(event.message.text.trim().match(/ID:\s*(\d+)\s*を選択/)[1], 10);
-          }
+        middleware.deleteSession(ctx);
+        builder.addTextMessage('何をしますか?')
+          .addRichMenu();
+      },
+      selectTeam: {
+        inputNumber: true,
+        async handler(ctx, builder, event, middleware, teamId) {
+          ctx.$session.teamId = teamId;
           const products = await Database.findProducts(ctx.$session.teamId);
           if (products.length === 0) {
-            builder
-              .addTextMessage('商品がありません. 商品一覧から追加してください.')
-              .send();
+            builder.addTextMessage('商品がありません. 商品一覧から追加してください.');
             middleware.deleteSession(ctx);
           } else if (products.length === 1) {
             const product = products[0];
@@ -97,242 +69,202 @@ const actions = {
               .addTextMessage('どの商品を追加しますか?')
               .addTextMessage(`> ${product.get('name')} (${product.get('price')}円) ID: ${product.get('id')}`)
               .addTextMessage('個数を教えてください')
-              .addKeyPadWithCancel()
-              .send();
+              .addKeyPadWithCancel();
           } else {
             ctx.$session.state = 'askProduct';
             builder
               .addTextMessage('どの商品を追加しますか?')
-              .addProductCarousel(products, false, false, true)
-              .send();
+              .addProductCarousel(products, false, false, true);
           }
-          break;
+        },
+      },
+      async default(ctx, builder) {
+        const teams = await ctx.$user.getTeams();
+        if (teams.length !== 1) {
+          builder.addTextMessage('団体を選択してください').addTeamCarousel(teams);
+        } else {
+          builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
+          return ['selectTeam', teams[0].id];
         }
-      }
+        return undefined;
+      },
     },
   },
   deleteLastOrder: {
-    auth: true,
     keyword: '最後の注文を削除',
-    async handler(ctx, event, middleware) {
-      const builder = new LINE.Builder(event.replyToken);
-      switch (ctx.$session.state) {
-        case 'confirmDelete': {
-          if (event.message.text.trim() === '削除する') {
-            await Database.deleteOrder(ctx.$session.order.get('id'), ctx.$session.teamId);
-            builder.addTextMessage('削除しました');
-          } else {
-            builder.addTextMessage('キャンセルしました');
-          }
-          middleware.deleteSession(ctx);
-          builder.addTextMessage('何をしますか?')
-            .addRichMenu()
-            .send();
-          break;
+    state: {
+      async confirmDelete(ctx, builder, event, middleware) {
+        if (event.message.text.trim() === '削除する') {
+          await Database.deleteOrder(ctx.$session.order.get('id'), ctx.$session.teamId);
+          builder.addTextMessage('削除しました');
+        } else {
+          builder.addTextMessage('キャンセルしました');
         }
-        default: {
-          const teams = await ctx.$user.getTeams();
-          if (teams.length !== 1) {
-            builder
-              .addTextMessage('団体を選択してください')
-              .addTeamCarousel(teams)
-              .send();
-            break;
-          } else {
-            ctx.$session.teamId = teams[0].id;
-            builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
-          }
-        }
-        // eslint-disable-next-line no-fallthrought
-        case 'selectTeam': {
-          if (!ctx.$session.teamId) {
-            ctx.$session.teamId = parseInt(event.message.text.trim().match(/ID:\s*(\d+)\s*を選択/)[1], 10);
-          }
+        middleware.deleteSession(ctx);
+        builder.addTextMessage('何をしますか?')
+          .addRichMenu();
+      },
+      selectTeam: {
+        inputNumber: true,
+        async handler(ctx, builder, event, middleware, teamId) {
+          ctx.$session.teamId = teamId;
           ctx.$session.state = 'confirmDelete';
           const latestOrder = await Database.findLatestOrder(ctx.$session.teamId);
           if (latestOrder === null) {
-            builder
-              .addTextMessage('注文が見つかりませんでした')
-              .send();
+            builder.addTextMessage('注文が見つかりませんでした');
           } else {
             ctx.$session.order = latestOrder;
             const createTime = moment(latestOrder.get('createdAt')).format('YYYY/MM/DD HH:mm:ss');
             builder
               .addConfirm(`作成日時: ${createTime}\n商品名: ${(await latestOrder.getProduct()).get('name')}\n個数: ${latestOrder.get('amount')}個\nを削除しますか？`,
-                '削除する', '削除しない')
-              .send();
+                '削除する', '削除しない');
           }
-          break;
+        },
+      },
+      async default(ctx, builder) {
+        const teams = await ctx.$user.getTeams();
+        if (teams.length !== 1) {
+          builder
+            .addTextMessage('団体を選択してください')
+            .addTeamCarousel(teams);
+        } else {
+          builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
+          return ['selectTeam', teams[0].id];
         }
-      }
+        return undefined;
+      },
     },
   },
   showProducts: {
-    auth: true,
     keyword: '商品一覧',
-    async handler(ctx, event, middleware) {
-      const builder = new LINE.Builder(event.replyToken);
-      switch (ctx.$session.state) {
-        case 'addNewName':
-          ctx.$session.newProduct = { name: event.message.text.trim() };
-          ctx.$session.state = 'addNewPrice';
+    state: {
+      async addNewName(ctx, builder, event) {
+        ctx.$session.newProduct = { name: event.message.text.trim() };
+        ctx.$session.state = 'addNewPrice';
+        builder.addTextMessage('金額を教えてください');
+      },
+      async addNewPrice(ctx, builder, event) {
+        const price = parseInt(event.message.text, 10);
+        if (!Number.isInteger(price)) {
+          builder.addTextMessage('数字ではないか大きすぎます.\nもう一度入力してください');
+        } else {
+          ctx.$session.newProduct.price = price;
+          ctx.$session.state = 'addNewConfirm';
           builder
-            .addTextMessage('金額を教えてください')
-            .send();
-          break;
-        case 'addNewPrice': {
-          const price = parseInt(event.message.text, 10);
-          if (!Number.isInteger(price)) {
+          // eslint-disable-next-line no-irregular-whitespace
+            .addConfirm(`商品名: ${ctx.$session.newProduct.name}\n　価格: ${ctx.$session.newProduct.price}円\nで追加します.よろしいですか`,
+              '追加する', '追加しない');
+        }
+      },
+      async addNewConfirm(ctx, builder, event, middleware) {
+        if (event.message.text.trim() === '追加する') {
+          await Database.addProduct(ctx.$session.newProduct.name,
+            ctx.$session.newProduct.price, ctx.$session.teamId);
+          // eslint-disable-next-line no-irregular-whitespace
+          builder.addTextMessage(`商品名: ${ctx.$session.newProduct.name}\n　価格: ${ctx.$session.newProduct.price}円\nで追加しました`);
+        } else {
+          // eslint-disable-next-line no-irregular-whitespace
+          builder.addTextMessage('追加をキャンセルしました');
+        }
+        middleware.deleteSession(ctx);
+        builder
+          .addTextMessage('何をしますか？')
+          .addRichMenu();
+      },
+      async confirmDelete(ctx, builder, event, middleware) {
+        if (event.message.text.trim() === '削除する') {
+          await Database.deleteProduct(ctx.$session.product.get('id'), ctx.$session.teamId);
+          builder.addTextMessage(`${ctx.$session.product.get('name')} (${ctx.$session.product.get('price')}円)を削除しました.`);
+        } else {
+          builder.addTextMessage('削除をキャンセルしました');
+        }
+        middleware.deleteSession(ctx);
+        builder.addTextMessage('何をしますか?').addRichMenu();
+      },
+      async selectTeam(ctx, builder, event) {
+        ctx.$session.teamId = parseInt(event.message.text.trim().match(/ID:\s*(\d+)\s*を選択/)[1], 10);
+        builder
+          .addProductCarousel(await Database.findProducts(ctx.$session.teamId), true, true, false);
+        ctx.$session.state = undefined;
+      },
+      async default(ctx, builder, event) {
+        let match;
+        const text = event.message.text.trim();
+        switch (text) {
+          case '新規追加':
+            ctx.$session.state = 'addNewName';
             builder
-              .addTextMessage('数字ではないか大きすぎます.\nもう一度入力してください')
-              .send();
-          } else {
-            ctx.$session.newProduct.price = price;
-            ctx.$session.state = 'addNewConfirm';
+              .addTextMessage('商品名を教えてください');
+            break;
+          case (match = text.match(/ID:\s*(\d+)\s*を削除/)) ? text : undefined: { // eslint-disable-line
+            const productId = parseInt(match[1], 10);
+            ctx.$session.product = await Database.findProduct(productId);
+            ctx.$session.state = 'confirmDelete';
             builder
-            // eslint-disable-next-line no-irregular-whitespace
-              .addConfirm(`商品名: ${ctx.$session.newProduct.name}\n　価格: ${ctx.$session.newProduct.price}円\nで追加します.よろしいですか`,
-                '追加する', '追加しない')
-              .send();
+              .addConfirm(`${ctx.$session.product.get('name')} (${ctx.$session.product.get('price')}円)を削除します.\nよろしいですか?`,
+                '削除する', '削除しない');
+            break;
           }
-          break;
-        }
-        case 'addNewConfirm': {
-          if (event.message.text.trim() === '追加する') {
-            await Database.addProduct(ctx.$session.newProduct.name,
-              ctx.$session.newProduct.price, ctx.$session.teamId);
-            // eslint-disable-next-line no-irregular-whitespace
-            builder.addTextMessage(`商品名: ${ctx.$session.newProduct.name}\n　価格: ${ctx.$session.newProduct.price}円\nで追加しました`);
-          } else {
-            // eslint-disable-next-line no-irregular-whitespace
-            builder.addTextMessage('追加をキャンセルしました');
-          }
-          middleware.deleteSession(ctx);
-          builder
-            .addTextMessage('何をしますか？')
-            .addRichMenu()
-            .send();
-          break;
-        }
-        case 'confirmDelete': {
-          if (event.message.text.trim() === '削除する') {
-            await Database.deleteProduct(ctx.$session.product.get('id'), ctx.$session.teamId);
-            builder.addTextMessage(`${ctx.$session.product.get('name')} (${ctx.$session.product.get('price')}円)を削除しました.`);
-          } else {
-            builder.addTextMessage('削除をキャンセルしました');
-          }
-          middleware.deleteSession(ctx);
-          builder
-            .addTextMessage('何をしますか？')
-            .addRichMenu()
-            .send();
-          break;
-        }
-        case 'selectTeam': {
-          ctx.$session.teamId = parseInt(event.message.text.trim().match(/ID:\s*(\d+)\s*を選択/)[1], 10);
-          builder
-            .addProductCarousel(await Database.findProducts(ctx.$session.teamId), true, true, false)
-            .send();
-          ctx.$session.state = undefined;
-          break;
-        }
-        default: {
-          let match;
-          const text = event.message.text.trim();
-          switch (text) {
-            case '新規追加':
-              ctx.$session.state = 'addNewName';
+          default: {
+            const teams = await ctx.$user.getTeams();
+            if (teams.length === 1) {
+              ctx.$session.teamId = teams[0].id;
               builder
-                .addTextMessage('商品名を教えてください')
-                .send();
-              break;
-            case (match = text.match(/ID:\s*(\d+)\s*を削除/)) ? text : undefined: { // eslint-disable-line
-              const productId = parseInt(match[1], 10);
-              ctx.$session.product = await Database.findProduct(productId);
-              ctx.$session.state = 'confirmDelete';
+                .addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`)
+                .addProductCarousel(await Database.findProducts(ctx.$session.teamId),
+                  true, true, false);
+            } else {
               builder
-                .addConfirm(`${ctx.$session.product.get('name')} (${ctx.$session.product.get('price')}円)を削除します.\nよろしいですか?`,
-                  '削除する', '削除しない')
-                .send();
-              break;
+                .addTextMessage('団体を選択してください')
+                .addTeamCarousel(teams);
+              ctx.$session.state = 'selectTeam';
             }
-            default: {
-              const teams = await ctx.$user.getTeams();
-              if (teams.length === 1) {
-                ctx.$session.teamId = teams[0].id;
-                builder
-                  .addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`)
-                  .addProductCarousel(await Database.findProducts(ctx.$session.teamId),
-                    true, true, false)
-                  .send();
-              } else {
-                builder
-                  .addTextMessage('団体を選択してください')
-                  .addTeamCarousel(teams)
-                  .send();
-                ctx.$session.state = 'selectTeam';
-              }
-              break;
-            }
+            break;
           }
-          break;
         }
-      }
+      },
     },
   },
   showNowOrder: {
-    auth: true,
     keyword: '現在の売上を確認',
-    async handler(ctx, event, middleware) {
-      const builder = new LINE.Builder(event.replyToken);
-      switch (ctx.$session.state) {
-        default: {
-          const teams = await ctx.$user.getTeams();
-          ctx.$session.state = 'selectTeam';
-          if (teams.length !== 1) {
-            builder
-              .addTextMessage('団体を選択してください')
-              .addTeamCarousel(teams)
-              .send();
-            break;
-          } else {
-            builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
-            ctx.$session.teamId = teams[0].id;
-          }
-        }
-        // eslint-disable-next-line no-fallthrought
-        case 'selectTeam': {
-          if (!ctx.$session.teamId) {
-            ctx.$session.teamId = parseInt(event.message.text.trim().match(/ID:\s*(\d+)\s*を選択/)[1], 10);
-          }
+    state: {
+      selectTeam: {
+        inputNumber: true,
+        async handler(ctx, builder, event, middleware, teamId) {
+          ctx.$session.teamId = teamId;
           const productsTotal = await Database.getTotal(ctx.$session.teamId);
           const total = productsTotal.reduce((prev, next) => {
+            const { amount, ticket, subtotal } = next;
             /* eslint-disable no-param-reassign */
-            prev.amount += next.amount;
-            prev.ticket += next.ticket;
-            prev.sum += next.subtotal;
+            prev.amount += amount;
+            prev.ticket += ticket;
+            prev.sum += subtotal;
             return prev;
           }, { ticket: 0, amount: 0, sum: 0 });
-          builder
-            .addTextMessage(`食券: ${total.ticket}\n個数: ${total.amount}\n金額: ${total.sum}円`)
-            .send();
+          builder.addTextMessage(`食券: ${total.ticket}\n個数: ${total.amount}\n金額: ${total.sum}円`);
           middleware.deleteSession(ctx);
-          break;
+        },
+      },
+      async default(ctx, builder) {
+        const teams = await ctx.$user.getTeams();
+        ctx.$session.state = 'selectTeam';
+        if (teams.length !== 1) {
+          builder.addTextMessage('団体を選択してください').addTeamCarousel(teams);
+        } else {
+          builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
+          return ['selectTeam', teams[0].id];
         }
-      }
+        return undefined;
+      },
     },
   },
   cancel: {
-    auth: false,
     keyword: 'キャンセル',
-    async handler(ctx, event, middleware) {
-      /* eslint-disable no-param-reassign */
-      middleware.deleteSession(ctx);
-      new LINE.Builder(event.replyToken)
-        .addTextMessage('キャンセルしました')
-        .addTextMessage('何をしますか？')
-        .addRichMenu()
-        .send();
+    state: {
+      default(ctx, builder, event, middleware) {
+        middleware.deleteSession(ctx);
+        builder.addTextMessage('キャンセルしました\n何をしますか?').addRichMenu();
+      },
     },
   },
 };
@@ -364,61 +296,62 @@ class LINEMiddleware {
   middleware() {
     return async (ctx) => {
       ctx.status = 200;
-      /* イベントであることを確認 */
       if (ctx.request.body.events && ctx.request.body.events.length === 1) {
         const event = ctx.request.body.events[0];
-        /* ユーザーからのメッセージのみ反応する. フォロー解除(ブロック) された場合はユーザーデータを削除 */
-        if (event.type === 'message' && event.source.type === 'user') {
-          const user = await Database.findUser(event.source.userId);
-          if (!user) {
-            const text = event.message.text.trim();
+        const { type, message, source } = event;
+        if (type === 'message' && message.type === 'text' && source.type === 'user') {
+          const text = message.text.trim();
+          ctx.$user = await Database.findUser(source.userId);
+          const builder = new LINE.Builder(event.replyToken);
+          const actionKey = Object.keys(actions).find(a => actions[a].keyword === text);
+          if (!ctx.$user) {
             const queueElement = this.registrationQueue[text];
             if (queueElement && queueElement.resolve) {
-              queueElement.resolve(event.source.userId);
-              new LINE.Builder(event.replyToken)
-                .addTextMessage('認証完了しました')
-                .send();
-            }
-            return;
-          }
-          /* sessionがある or キーワードだったら処理続行, 当てはまらない場合はRichMenuのImagemapを送信 */
-          if (this.sessions[event.source.userId] || (event.message.type === 'text'
-            && Object.values(actions).map(a => a.keyword).includes(event.message.text))) {
-            /* アクションを取得して現在のアクションと同じならばそのまま呼び出す
-               もし違うアクションの場合は前のアクションを放棄して新しいアクションを呼び出す */
-            const action = Object.keys(actions)
-              .find(a => actions[a].keyword === event.message.text);
-            if (this.sessions[event.source.userId] && action
-              && this.sessions[event.source.userId].action !== action) {
-              delete this.sessions[event.source.userId];
-            }
-            if (!this.sessions[event.source.userId]) {
-              this.sessions[event.source.userId] = { action };
-            }
-            ctx.$session = this.sessions[event.source.userId];
-            if (actions[ctx.$session.action].auth) {
-              if (user) {
-                ctx.$user = user;
-                await actions[ctx.$session.action].handler(ctx, event, this);
-              } else {
-                this.deleteSession(ctx);
-                new LINE.Builder(event.replyToken)
-                  .addTextMessage('団体名の設定が必要です')
-                  .addTextMessage('何をしますか?')
-                  .addRichMenu()
-                  .send();
-              }
+              queueElement.resolve(source.userId);
+              builder.addTextMessage('認証完了しました');
             } else {
-              await actions[ctx.$session.action].handler(ctx, event, this);
+              builder.addTextMessage(`登録が必要です。\nhttps://${Config.BASE_URL}\nにアクセスして登録して下さい。`);
+            }
+          } else if (this.sessions[source.userId] || actionKey) {
+            if (!this.sessions[source.userId]
+              || (actionKey && this.sessions[source.userId].action !== actionKey)) {
+              this.sessions[source.userId] = { action: actionKey };
+            }
+            ctx.$session = this.sessions[source.userId];
+            const action = actions[ctx.$session.action];
+            /*
+            state = function -> call only
+            state = object
+              inputNumber: validate and add args
+              handler: call function
+            -> String (fallThrough state) || [String, Integer]
+            */
+            let firstCall = true;
+            let fallState = ctx.$session.state;
+            /* eslint-disable no-await-in-loop */
+            while (firstCall || fallState) {
+              firstCall = false;
+              if (Array.isArray(fallState)) {
+                const state = action.state[fallState[0]] || action.state.default;
+                fallState = await (typeof state === 'object' ? state.handler : state)(ctx, builder, event, this, fallState[1]);
+              } else {
+                const state = action.state[fallState] || action.state.default;
+                const num = parseInt(text, 10);
+                if (typeof state === 'object') {
+                  if (state.inputNumber && !Number.isInteger(num)) {
+                    builder.addTextMessage('数字ではないか大きすぎます.\nもう一度入力してください');
+                  } else {
+                    fallState = await state.handler(ctx, builder, event, this, num);
+                  }
+                } else {
+                  fallState = await state(ctx, builder, event, this, num);
+                }
+              }
             }
           } else {
-            new LINE.Builder(event.replyToken)
-              .addTextMessage('何をしますか？')
-              .addRichMenu()
-              .send();
+            builder.addTextMessage('何をしますか？').addRichMenu();
           }
-        } else if (event.type === 'unfollow' && event.source.type === 'user') {
-          await Database.deleteUser(event.source.userId);
+          builder.send();
         }
       }
     };

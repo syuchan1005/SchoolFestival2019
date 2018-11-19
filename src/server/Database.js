@@ -113,6 +113,9 @@ class Database {
   }
 
   async findUser(lineUserId) {
+    /**
+     * @property getTeams {Promise<Object>}
+     */
     return this.models.user.findOne({
       where: { lineUserId },
     });
@@ -238,6 +241,9 @@ class Database {
   }
 
   findLatestOrder(teamId) {
+    /**
+     * @property getProduct {Promise<Object>}
+     */
     return this.models.order.findOne({
       order: [['updatedAt', 'DESC']],
       include: [{ model: this.models.product, required: true, where: { teamId } }],

@@ -343,7 +343,7 @@ class LINE {
           actions: [{
             type: 'message',
             label: 'これにする',
-            text: `ID: ${team.id}を選択`,
+            text: team.id,
           }],
         })),
       },
