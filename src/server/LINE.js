@@ -12,10 +12,10 @@ class LINE {
     });
   }
 
-  static get richmenu() {
+  static get menu() {
     return {
       type: 'imagemap',
-      baseUrl: `https://${Config.BASE_URL}/images/richmenu-869cbcc36de417c5b7a0fc91e551c12b`,
+      baseUrl: `https://${Config.BASE_URL}/images/menu`,
       altText: 'RichMenu',
       baseSize: {
         width: 2500,
@@ -44,21 +44,11 @@ class LINE {
         },
         {
           type: 'message',
-          text: '団体名を設定',
+          text: '商品一覧',
           area: {
             x: 10,
             y: 853,
-            width: 610,
-            height: 823,
-          },
-        },
-        {
-          type: 'message',
-          text: '商品一覧',
-          area: {
-            x: 630,
-            y: 853,
-            width: 610,
+            width: 1230,
             height: 823,
           },
         },
@@ -341,8 +331,26 @@ class LINE {
     };
   }
 
+  static teamCarousel(teams) {
+    return {
+      type: 'template',
+      altText: 'Team Carousel',
+      template: {
+        type: 'carousel',
+        columns: teams.map(team => ({
+          title: team.name,
+          text: `ID: ${team.id}`,
+          actions: [{
+            type: 'message',
+            label: 'これにする',
+            text: `ID: ${team.id}を選択`,
+          }],
+        })),
+      },
+    };
+  }
+
   static getContent(messageId) {
-    console.log(messageId);
     return LINE.$http({
       method: 'GET',
       url: `/message/${messageId}/content`,
@@ -391,7 +399,7 @@ LINE.Builder = class Builder {
    * @returns {LINE.Builder}
    */
   addRichMenu() {
-    this.messages.push(LINE.richmenu);
+    this.messages.push(LINE.menu);
     return this;
   }
 
@@ -429,6 +437,14 @@ LINE.Builder = class Builder {
         ],
       },
     });
+    return this;
+  }
+
+  /**
+   * @returns {LINE.Builder}
+   */
+  addTeamCarousel(teams) {
+    this.messages.push(LINE.teamCarousel(teams));
     return this;
   }
 

@@ -46,7 +46,8 @@
       </v-data-table>
     </v-card>
 
-    <v-btn fab dark class="refresh-btn green" @click="$apollo.queries.data.refetch()">
+    <v-btn fab dark class="refresh-btn green"
+           @click="() => { $apollo.queries.data.refetch(); $apollo.queries.products.refetch(); }">
       <v-icon>refresh</v-icon>
     </v-btn>
 

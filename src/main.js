@@ -34,16 +34,7 @@ if (process.env.NODE_ENV !== 'production' && window.location.hostname === 'local
   apolloClient = new ApolloClient({ uri: `${window.location.origin}/graphql` });
 }
 Vue.prototype.$http.defaults.withCredentials = true;
-Vue.prototype.$http.interceptors.request.use((config) => {
-  if (store.state.teamId !== -1) {
-    // eslint-disable-next-line no-param-reassign
-    config.params = {
-      ...config.params,
-      teamId: store.state.teamId,
-    };
-  }
-  return config;
-});
+
 Vue.use(VueApollo);
 
 new Vue({

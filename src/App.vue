@@ -50,9 +50,13 @@ export default {
           }
         }
       }`,
+      skip() {
+        return this.$route.path === '/';
+      },
       manual: true,
       result({ data }) {
         this.teams = data.user.teams;
+        this.$store.commit('setTeamId', this.teams[0].id);
       },
     },
   },

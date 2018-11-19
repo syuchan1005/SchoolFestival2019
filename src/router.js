@@ -1,6 +1,5 @@
 import Vue from 'vue';
 import Router from 'vue-router';
-import store from './store';
 import Top from './views/Top.vue';
 
 Vue.use(Router);
@@ -34,13 +33,6 @@ const router = new Router({
       component: () => import(/* webpackChunkName: "authed" */ './views/Operation.vue'),
     },
   ],
-});
-
-router.beforeEach((to, from, next) => {
-  if (store.state.teams.length <= 0 && to.path !== '/') {
-    store.dispatch('loadTeams');
-  }
-  next();
 });
 
 export default router;
