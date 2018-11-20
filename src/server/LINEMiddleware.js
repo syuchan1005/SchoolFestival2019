@@ -54,28 +54,36 @@ const actions = {
           .addRichMenu();
       },
       selectTeam: {
-        inputNumber: true,
-        async handler(ctx, builder, event, middleware, teamId) {
-          ctx.$session.teamId = teamId;
-          const products = await Database.findProducts(ctx.$session.teamId);
-          if (products.length === 0) {
-            builder.addTextMessage('商品がありません. 商品一覧から追加してください.');
-            middleware.deleteSession(ctx);
-          } else if (products.length === 1) {
-            const product = products[0];
-            ctx.$session.state = 'askAmount';
-            ctx.$session.product = product;
-            builder
-              .addTextMessage('どの商品を追加しますか?')
-              .addTextMessage(`> ${product.get('name')} (${product.get('price')}円) ID: ${product.get('id')}`)
-              .addTextMessage('個数を教えてください')
-              .addKeyPadWithCancel();
-          } else {
-            ctx.$session.state = 'askProduct';
-            builder
-              .addTextMessage('どの商品を追加しますか?')
-              .addProductCarousel(products, false, false, true);
-          }
+        patterns: [
+          {
+            name: 'teamId',
+            pattern: /(?<teamId>\d+)/,
+            async handler(ctx, builder, event, middleware, { teamId }) {
+              ctx.$session.teamId = teamId;
+              const products = await Database.findProducts(ctx.$session.teamId);
+              if (products.length === 0) {
+                builder.addTextMessage('商品がありません. 商品一覧から追加してください.');
+                middleware.deleteSession(ctx);
+              } else if (products.length === 1) {
+                const product = products[0];
+                ctx.$session.state = 'askAmount';
+                ctx.$session.product = product;
+                builder
+                  .addTextMessage('どの商品を追加しますか?')
+                  .addTextMessage(`> ${product.get('name')} (${product.get('price')}円) ID: ${product.get('id')}`)
+                  .addTextMessage('個数を教えてください')
+                  .addKeyPadWithCancel();
+              } else {
+                ctx.$session.state = 'askProduct';
+                builder
+                  .addTextMessage('どの商品を追加しますか?')
+                  .addProductCarousel(products, false, false, true);
+              }
+            },
+          },
+        ],
+        async handler(ctx, builder) {
+          builder.addTextMessage('数字ではないか、大きすぎます。\nもう一度入力してください。');
         },
       },
       async default(ctx, builder) {
@@ -84,7 +92,7 @@ const actions = {
           builder.addTextMessage('団体を選択してください').addTeamCarousel(teams);
         } else {
           builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
-          return ['selectTeam', teams[0].id];
+          return ['selectTeam', 'teamId', { teamId: teams[0].id }];
         }
         return undefined;
       },
@@ -105,20 +113,28 @@ const actions = {
           .addRichMenu();
       },
       selectTeam: {
-        inputNumber: true,
-        async handler(ctx, builder, event, middleware, teamId) {
-          ctx.$session.teamId = teamId;
-          ctx.$session.state = 'confirmDelete';
-          const latestOrder = await Database.findLatestOrder(ctx.$session.teamId);
-          if (latestOrder === null) {
-            builder.addTextMessage('注文が見つかりませんでした');
-          } else {
-            ctx.$session.order = latestOrder;
-            const createTime = moment(latestOrder.get('createdAt')).format('YYYY/MM/DD HH:mm:ss');
-            builder
-              .addConfirm(`作成日時: ${createTime}\n商品名: ${(await latestOrder.getProduct()).get('name')}\n個数: ${latestOrder.get('amount')}個\nを削除しますか？`,
-                '削除する', '削除しない');
-          }
+        patterns: [
+          {
+            name: 'teamId',
+            pattern: /(?<teamId>\d+)/,
+            async handler(ctx, builder, event, middleware, { teamId }) {
+              ctx.$session.teamId = teamId;
+              ctx.$session.state = 'confirmDelete';
+              const latestOrder = await Database.findLatestOrder(ctx.$session.teamId);
+              if (latestOrder === null) {
+                builder.addTextMessage('注文が見つかりませんでした');
+              } else {
+                ctx.$session.order = latestOrder;
+                const createTime = moment(latestOrder.get('createdAt')).format('YYYY/MM/DD HH:mm:ss');
+                builder
+                  .addConfirm(`作成日時: ${createTime}\n商品名: ${(await latestOrder.getProduct()).get('name')}\n個数: ${latestOrder.get('amount')}個\nを削除しますか？`,
+                    '削除する', '削除しない');
+              }
+            },
+          },
+        ],
+        async handler(ctx, builder) {
+          builder.addTextMessage('数字ではないか、大きすぎます。\nもう一度入力してください。');
         },
       },
       async default(ctx, builder) {
@@ -129,7 +145,7 @@ const actions = {
             .addTeamCarousel(teams);
         } else {
           builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
-          return ['selectTeam', teams[0].id];
+          return ['selectTeam', 'teamId', { teamId: teams[0].id }];
         }
         return undefined;
       },
@@ -229,20 +245,28 @@ const actions = {
     keyword: '現在の売上を確認',
     state: {
       selectTeam: {
-        inputNumber: true,
-        async handler(ctx, builder, event, middleware, teamId) {
-          ctx.$session.teamId = teamId;
-          const productsTotal = await Database.getTotal(ctx.$session.teamId);
-          const total = productsTotal.reduce((prev, next) => {
-            const { amount, ticket, subtotal } = next;
-            /* eslint-disable no-param-reassign */
-            prev.amount += amount;
-            prev.ticket += ticket;
-            prev.sum += subtotal;
-            return prev;
-          }, { ticket: 0, amount: 0, sum: 0 });
-          builder.addTextMessage(`食券: ${total.ticket}\n個数: ${total.amount}\n金額: ${total.sum}円`);
-          middleware.deleteSession(ctx);
+        patterns: [
+          {
+            name: 'teamId',
+            pattern: /(?<teamId>\d+)/,
+            async handler(ctx, builder, event, middleware, { teamId }) {
+              ctx.$session.teamId = teamId;
+              const productsTotal = await Database.getTotal(ctx.$session.teamId);
+              const total = productsTotal.reduce((prev, next) => {
+                const { amount, ticket, subtotal } = next;
+                /* eslint-disable no-param-reassign */
+                prev.amount += amount;
+                prev.ticket += ticket;
+                prev.sum += subtotal;
+                return prev;
+              }, { ticket: 0, amount: 0, sum: 0 });
+              builder.addTextMessage(`食券: ${total.ticket}\n個数: ${total.amount}\n金額: ${total.sum}円`);
+              middleware.deleteSession(ctx);
+            },
+          },
+        ],
+        async handler(ctx, builder) {
+          builder.addTextMessage('数字ではないか、大きすぎます。\nもう一度入力してください。');
         },
       },
       async default(ctx, builder) {
@@ -252,7 +276,7 @@ const actions = {
           builder.addTextMessage('団体を選択してください').addTeamCarousel(teams);
         } else {
           builder.addTextMessage(`> ID: ${teams[0].id} (${teams[0].name})`);
-          return ['selectTeam', teams[0].id];
+          return ['selectTeam', 'teamId', { teamId: teams[0].id }];
         }
         return undefined;
       },
@@ -322,30 +346,35 @@ class LINEMiddleware {
             /*
             state = function -> call only
             state = object
-              inputNumber: validate and add args
+              patterns: [{
+                name: string,
+                pattern: {Regexp},
+                handler: call function
+              }]
               handler: call function
-            -> String (fallThrough state) || [String, Integer]
+            -> String (state) || [String, String, Any] {state, patternName, Arguments}
             */
             let firstCall = true;
             let fallState = ctx.$session.state;
-            /* eslint-disable no-await-in-loop */
+            /* eslint-disable no-await-in-loop, no-loop-func */
             while (firstCall || fallState) {
               firstCall = false;
-              if (Array.isArray(fallState)) {
-                const state = action.state[fallState[0]] || action.state.default;
-                fallState = await (typeof state === 'object' ? state.handler : state)(ctx, builder, event, this, fallState[1]);
-              } else {
-                const state = action.state[fallState] || action.state.default;
-                const num = parseInt(text, 10);
-                if (typeof state === 'object') {
-                  if (state.inputNumber && !Number.isInteger(num)) {
-                    builder.addTextMessage('数字ではないか大きすぎます.\nもう一度入力してください');
-                  } else {
-                    fallState = await state.handler(ctx, builder, event, this, num);
-                  }
+              const arrayState = Array.isArray(fallState);
+              if (!arrayState) fallState = [fallState, undefined, undefined];
+              const state = action.state[fallState[0]] || action.state.default;
+              if (typeof state === 'function') {
+                fallState = await state(ctx, builder, event, this, fallState[2]);
+              } else if (state.patterns && (fallState[1] || !arrayState)) {
+                const pattern = state.patterns
+                  .find(p => (arrayState ? p.name === fallState[1] : p.pattern.test(text) && p));
+                if (pattern) {
+                  if (!arrayState) fallState[2] = pattern.pattern.exec(text).groups;
+                  fallState = await pattern.handler(ctx, builder, event, this, fallState[2]);
                 } else {
-                  fallState = await state(ctx, builder, event, this, num);
+                  fallState = await state.handler(ctx, builder, event, this, fallState[2]);
                 }
+              } else {
+                fallState = await state.handler(ctx, builder, event, this, fallState[2]);
               }
             }
           } else {
