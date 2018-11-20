@@ -2,7 +2,7 @@
   <v-app>
     <div class="loading" v-show="isLoading || $apollo.loading"></div>
 
-    <v-toolbar color="green" dark tabs v-show="$route.path !== '/'">
+    <v-toolbar color="green" dark tabs class="app-header" v-if="$route.path !== '/'">
       <v-toolbar-title>School Festival 2019</v-toolbar-title>
       <v-spacer/>
       <v-select v-model="teamId" :items="teams" item-text="name" item-value="id"
@@ -22,15 +22,15 @@
 
     <v-content>
       <router-view/>
-
-      <v-bottom-nav :active.sync="navActive" :value="true" absolute color="transparent"
-                    v-if="$route.path.startsWith('/register')">
-        <v-btn v-for="page in pages" :key="page.label" flat :color="page.color" :value="page.to">
-          <span>{{ page.label }}</span>
-          <v-icon>{{ page.icon }}</v-icon>
-        </v-btn>
-      </v-bottom-nav>
     </v-content>
+
+    <v-bottom-nav :active.sync="navActive" :value="true" absolute color="white"
+                  class="app-footer" v-if="$route.path.startsWith('/register')">
+      <v-btn v-for="page in pages" :key="page.label" flat :color="page.color" :value="page.to">
+        <span>{{ page.label }}</span>
+        <v-icon>{{ page.icon }}</v-icon>
+      </v-btn>
+    </v-bottom-nav>
   </v-app>
 </template>
 
@@ -116,11 +116,8 @@ export default {
 };
 </script>
 
+<!--suppress CssInvalidFunction CssOverwrittenProperties -->
 <style>
-  html {
-    overflow: auto;
-  }
-
   html, body {
     padding: 0;
     margin: 0;
@@ -128,32 +125,41 @@ export default {
     height: 100%;
   }
 
-  /* noinspection All */
-  .application {
-    /* eslint-disable */
-    padding-top: constant(safe-area-inset-top);
-    padding-right: constant(safe-area-inset-right);
-    padding-bottom: constant(safe-area-inset-bottom);
-    padding-left: constant(safe-area-inset-left);
-    padding-top: env(safe-area-inset-top);
-    padding-right: env(safe-area-inset-right);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-  }
-
   .v-btn.v-btn--floating.refresh-btn {
-    position: absolute;
-    bottom: 64px;
+    position: fixed;
+    bottom: calc(64px + constant(safe-area-inset-bottom));
+    bottom: calc(64px + env(safe-area-inset-bottom));
     right: 16px;
   }
 </style>
 
-<style scoped>
+<!--suppress CssInvalidFunction CssOverwrittenProperties -->
+<style lang="scss" scoped>
   .loading {
     z-index: 1000;
     position: fixed;
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .app-header {
+    z-index: 5;
+    position: fixed;
+    top: 0;
+
+    & + .v-content {
+      padding-top: 110px !important;
+    }
+  }
+
+  .app-footer {
+    z-index: 5;
+    position: fixed;
+    bottom: 0;
+
+    height: auto !important;
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 </style>

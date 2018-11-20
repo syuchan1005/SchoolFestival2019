@@ -352,7 +352,7 @@ class LINEMiddleware {
                 handler: call function
               }]
               handler: call function
-            -> String (state) || [String, String, Any] {state, patternName, Arguments}
+            -> [String, String, Any] {state, patternName, Arguments}
             */
             let firstCall = true;
             let fallState = ctx.$session.state;
