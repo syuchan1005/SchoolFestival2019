@@ -1,5 +1,5 @@
 <template>
-  <div class="operation">
+  <div class="operation app-footer-margin">
     <v-card>
       <v-data-table
         :headers="[{ text: '', value: 'checkbox', align: 'left', sortable: false, width: '30px' },
@@ -84,7 +84,7 @@
       </v-card>
     </v-dialog>
 
-    <v-btn fab dark class="refresh-btn green" @click="$apollo.queries.products.refetch()">
+    <v-btn fab dark class="refetch-btn green" @click="$apollo.queries.products.refetch()">
       <v-icon>refresh</v-icon>
     </v-btn>
   </div>
@@ -174,7 +174,6 @@ export default {
 <style lang="scss" scoped>
   .operation {
     padding: 15px;
-    padding-bottom: 150px;
   }
 
   .forms {

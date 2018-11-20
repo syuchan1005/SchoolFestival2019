@@ -1,5 +1,5 @@
 <template>
-  <div class="information">
+  <div class="information app-footer-margin">
     <div class="total">
       <div>個数: {{total.amount}}個</div>
       <div>金額: {{total.sum}}円</div>
@@ -70,7 +70,7 @@
       Download csv
     </v-btn>
 
-    <v-btn fab dark class="refresh-btn green" @click="$apollo.queries.data.refetch()">
+    <v-btn fab dark class="refetch-btn green" @click="$apollo.queries.data.refetch()">
       <v-icon>refresh</v-icon>
     </v-btn>
   </div>
@@ -236,7 +236,6 @@ export default {
 <style lang="scss" scoped>
   .information {
     padding: 10px;
-    padding-bottom: 150px;
   }
 
   .total {

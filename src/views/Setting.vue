@@ -1,5 +1,5 @@
 <template>
-  <div class="setting">
+  <div class="setting app-footer-margin">
     <v-card class="teamname-field">
       <v-combobox ref="joinTeamForm" chips clearable multiple
                   label="参加団体" :items="teams" v-model="joinedTeamsModel"
@@ -46,7 +46,7 @@
       </v-data-table>
     </v-card>
 
-    <v-btn fab dark class="refresh-btn green"
+    <v-btn fab dark class="refetch-btn green"
            @click="() => { $apollo.queries.data.refetch(); $apollo.queries.products.refetch(); }">
       <v-icon>refresh</v-icon>
     </v-btn>
@@ -210,7 +210,6 @@ export default {
 <style lang="scss" scoped>
   .setting {
     padding: 10px;
-    padding-bottom: 150px;
 
     .teamname-field {
       display: flex;

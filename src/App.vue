@@ -119,17 +119,23 @@ export default {
 <!--suppress CssInvalidFunction CssOverwrittenProperties -->
 <style>
   html, body {
+    overflow: hidden;
     padding: 0;
     margin: 0;
     width: 100%;
     height: 100%;
   }
 
-  .v-btn.v-btn--floating.refresh-btn {
+  .v-btn.v-btn--floating.refetch-btn {
     position: fixed;
     bottom: calc(64px + constant(safe-area-inset-bottom));
     bottom: calc(64px + env(safe-area-inset-bottom));
     right: 16px;
+  }
+
+  .app-footer-margin {
+    padding-bottom: calc(56px + 64px + constant(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(56px + 64px + env(safe-area-inset-bottom)) !important;
   }
 </style>
 
@@ -141,6 +147,16 @@ export default {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .v-content {
+    min-width: 100%;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100%;
+    height: 100%;
+    max-height: 100%;
+    overflow: scroll;
   }
 
   .app-header {
