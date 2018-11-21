@@ -1,18 +1,20 @@
 <template>
   <v-app>
-    <div ref="safe-area" class="safe-area"></div>
-
     <div class="loading" v-show="$apollo.loading"></div>
 
-    <v-toolbar app fixed color="green" dark tabs v-if="$route.path !== '/'">
+    <v-toolbar app fixed color="green" dark tabs :class="[$vuetify.breakpoint.name]"
+               class="app-header" v-if="$route.path !== '/'">
       <v-toolbar-title>School Festival 2019</v-toolbar-title>
-      <v-spacer/>
-      <v-select v-model="teamId" :items="teams" item-text="name" item-value="id"
-                :disabled="teams.length === 1" label="団体" hide-details box
-                style="max-width: 200px;width: 200px"/>
-      <v-icon @click="$apollo.queries.teams.refetch()" style="margin: 0 20px 0 10px">
-        refresh
-      </v-icon>
+      <v-spacer />
+      <div style="display: flex;" class="form">
+        <v-spacer />
+        <v-select v-model="teamId" :items="teams" item-text="name" item-value="id"
+                  :disabled="teams.length === 1" label="団体" hide-details box
+                  style="max-width: 200px;width: 200px"/>
+        <v-icon @click="$apollo.queries.teams.refetch()" style="margin: 0 20px 0 10px">
+          refresh
+        </v-icon>
+      </div>
       <v-btn class="blue darken-1" @click="logout">logout</v-btn>
 
       <v-tabs slot="extension" grow color="green" slider-color="yellow">
@@ -22,7 +24,7 @@
       </v-tabs>
     </v-toolbar>
 
-    <v-content>
+    <v-content :class="{ 'bottom-bar': $route.path.startsWith('/register')}">
       <router-view/>
     </v-content>
 
@@ -141,21 +143,19 @@ export default {
     bottom: calc(64px + env(safe-area-inset-bottom));
     right: 16px;
   }
+
+  .app-header .v-toolbar__content {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .app-header.xs .v-toolbar__content {
+    height: 104px !important;
+  }
 </style>
 
 <!--suppress CssInvalidFunction CssOverwrittenProperties -->
 <style lang="scss" scoped>
-  .safe-area {
-    padding-top: constant(safe-area-inset-top);
-    padding-bottom: constant(safe-area-inset-bottom);
-    padding-left: constant(safe-area-inset-left);
-    padding-right: constant(safe-area-inset-right);
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-
   .loading {
     z-index: 1000;
     position: fixed;
@@ -164,7 +164,11 @@ export default {
     background-color: rgba(0, 0, 0, 0.5);
   }
 
-  .v-content {
+  .app-header.xs + .v-content {
+    padding-top: 152px !important;
+  }
+
+  .v-content.bottom-bar {
     padding-bottom: calc(56px + constant(safe-area-inset-bottom)) !important;
     padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
   }
@@ -173,5 +177,12 @@ export default {
     height: auto !important;
     padding-bottom: constant(safe-area-inset-bottom);
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .app-header.xs {
+    .form {
+      width: 100%;
+      order: 1;
+    }
   }
 </style>
