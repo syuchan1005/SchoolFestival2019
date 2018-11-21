@@ -1,8 +1,10 @@
 <template>
   <v-app>
+    <div ref="safe-area" class="safe-area"></div>
+
     <div class="loading" v-show="$apollo.loading"></div>
 
-    <v-toolbar color="green" dark tabs class="app-header" v-if="$route.path !== '/'">
+    <v-toolbar app fixed color="green" dark tabs v-if="$route.path !== '/'">
       <v-toolbar-title>School Festival 2019</v-toolbar-title>
       <v-spacer/>
       <v-select v-model="teamId" :items="teams" item-text="name" item-value="id"
@@ -24,8 +26,8 @@
       <router-view/>
     </v-content>
 
-    <v-bottom-nav :active.sync="navActive" :value="true" absolute color="white"
-                  class="app-footer" v-if="$route.path.startsWith('/register')">
+    <v-bottom-nav :active.sync="navActive" :value="true" v-if="$route.path.startsWith('/register')"
+                  app fixed color="white" class="bottom-toolbar">
       <v-btn v-for="page in pages" :key="page.label" flat :color="page.color" :value="page.to">
         <span>{{ page.label }}</span>
         <v-icon>{{ page.icon }}</v-icon>
@@ -127,7 +129,6 @@ export default {
 <!--suppress CssInvalidFunction CssOverwrittenProperties -->
 <style>
   html, body {
-    overflow: hidden;
     padding: 0;
     margin: 0;
     width: 100%;
@@ -140,15 +141,21 @@ export default {
     bottom: calc(64px + env(safe-area-inset-bottom));
     right: 16px;
   }
-
-  .app-footer-margin {
-    padding-bottom: calc(56px + 64px + constant(safe-area-inset-bottom)) !important;
-    padding-bottom: calc(56px + 64px + env(safe-area-inset-bottom)) !important;
-  }
 </style>
 
 <!--suppress CssInvalidFunction CssOverwrittenProperties -->
 <style lang="scss" scoped>
+  .safe-area {
+    padding-top: constant(safe-area-inset-top);
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-left: constant(safe-area-inset-left);
+    padding-right: constant(safe-area-inset-right);
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
   .loading {
     z-index: 1000;
     position: fixed;
@@ -158,30 +165,11 @@ export default {
   }
 
   .v-content {
-    min-width: 100%;
-    width: 100%;
-    max-width: 100%;
-    min-height: 100%;
-    height: 100%;
-    max-height: 100%;
-    overflow: scroll;
+    padding-bottom: calc(56px + constant(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
   }
 
-  .app-header {
-    z-index: 5;
-    position: fixed;
-    top: 0;
-
-    & + .v-content {
-      padding-top: 110px !important;
-    }
-  }
-
-  .app-footer {
-    z-index: 5;
-    position: fixed;
-    bottom: 0;
-
+  .bottom-toolbar {
     height: auto !important;
     padding-bottom: constant(safe-area-inset-bottom);
     padding-bottom: env(safe-area-inset-bottom);

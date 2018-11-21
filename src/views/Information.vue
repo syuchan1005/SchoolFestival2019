@@ -1,5 +1,5 @@
 <template>
-  <div class="information app-footer-margin">
+  <div class="information">
     <div class="total">
       <div>個数: {{total.amount}}個</div>
       <div>金額: {{total.sum}}円</div>
@@ -235,7 +235,7 @@ export default {
 
 <style lang="scss" scoped>
   .information {
-    padding: 10px;
+    padding: 15px 15px 64px;
   }
 
   .total {

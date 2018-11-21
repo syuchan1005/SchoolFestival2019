@@ -1,5 +1,5 @@
 <template>
-  <div class="operation app-footer-margin">
+  <div class="operation">
     <v-card>
       <v-data-table
         :headers="[{ text: '', value: 'checkbox', align: 'left', sortable: false, width: '30px' },
@@ -174,7 +174,7 @@ export default {
 
 <style lang="scss" scoped>
   .operation {
-    padding: 15px;
+    padding: 15px 15px 64px;
   }
 
   .forms {

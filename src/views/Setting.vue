@@ -1,5 +1,5 @@
 <template>
-  <div class="setting app-footer-margin">
+  <div class="setting">
     <v-card flat>
       <apollo-mutation :mutation="getTokenMutation" v-if="!token"
                        @done="({ data }) => { token = data.userToken }">
@@ -246,7 +246,7 @@ export default {
 
 <style lang="scss" scoped>
   .setting {
-    padding: 10px;
+    padding: 15px 15px 64px;
 
     .teamname-field {
       display: flex;
