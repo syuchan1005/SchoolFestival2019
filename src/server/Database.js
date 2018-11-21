@@ -3,6 +3,9 @@ import debug from 'debug';
 import { parse as json2csv } from 'json2csv';
 import _ from 'lodash';
 
+import Config from '../../config';
+import moment from 'moment';
+
 const logger = debug('main:sql');
 
 /* eslint-disable no-return-await */
@@ -15,6 +18,11 @@ class Database {
       operatorsAliases: false,
       logging: v => logger(v),
     });
+    this.tempToken = {
+      left: ['admiring', 'adoring', 'affectionate', 'agitated', 'amazing', 'angry', 'awesome', 'blissful', 'bold', 'boring', 'brave', 'charming', 'clever', 'cocky', 'cool', 'compassionate', 'competent', 'condescending', 'confident', 'cranky', 'crazy', 'dazzling', 'determined', 'distracted', 'dreamy', 'eager', 'ecstatic', 'elastic', 'elated', 'elegant', 'eloquent', 'epic', 'fervent', 'festive', 'flamboyant', 'focused', 'friendly', 'frosty', 'gallant', 'gifted', 'goofy', 'gracious', 'happy', 'hardcore', 'heuristic', 'hopeful', 'hungry', 'infallible', 'inspiring', 'jolly', 'jovial', 'keen', 'kind', 'laughing', 'loving', 'lucid', 'magical', 'mystifying', 'modest', 'musing', 'naughty', 'nervous', 'nifty', 'nostalgic', 'objective', 'optimistic', 'peaceful', 'pedantic', 'pensive', 'practical', 'priceless', 'quirky', 'quizzical', 'recursing', 'relaxed', 'reverent', 'romantic', 'sad', 'serene', 'sharp', 'silly', 'sleepy', 'stoic', 'stupefied', 'suspicious', 'sweet', 'tender', 'thirsty', 'trusting', 'unruffled', 'upbeat', 'vibrant', 'vigilant', 'vigorous', 'wizardly', 'wonderful', 'xenodochial', 'youthful', 'zealous', 'zen'],
+      right: ['albattani', 'allen', 'almeida', 'antonelli', 'agnesi', 'archimedes', 'ardinghelli', 'aryabhata', 'austin', 'babbage', 'banach', 'banzai', 'bardeen', 'bartik', 'bassi', 'beaver', 'bell', 'benz', 'bhabha', 'bhaskara', 'black', 'blackburn', 'blackwell', 'bohr', 'booth', 'borg', 'bose', 'boyd', 'brahmagupta', 'brattain', 'brown', 'burnell', 'buck', 'burnell', 'cannon', 'carson', 'cartwright', 'chandrasekhar', 'chaplygin', 'chatelet', 'chatterjee', 'chebyshev', 'cocks', 'cohen', 'chaum', 'clarke', 'colden', 'cori', 'cray', 'curran', 'curie', 'darwin', 'davinci', 'dewdney', 'dhawan', 'diffie', 'dijkstra', 'dirac', 'driscoll', 'dubinsky', 'easley', 'edison', 'einstein', 'elbakyan', 'elgamal', 'elion', 'ellis', 'engelbart', 'euclid', 'euler', 'faraday', 'feistel', 'fermat', 'fermi', 'feynman', 'franklin', 'gagarin', 'galileo', 'galois', 'ganguly', 'gates', 'gauss', 'germain', 'goldberg', 'goldstine', 'goldwasser', 'golick', 'goodall', 'gould', 'greider', 'grothendieck', 'haibt', 'hamilton', 'haslett', 'hawking', 'hellman', 'heisenberg', 'hermann', 'herschel', 'hertz', 'heyrovsky', 'hodgkin', 'hofstadter', 'hoover', 'hopper', 'hugle', 'hypatia', 'ishizaka', 'jackson', 'jang', 'jennings', 'jepsen', 'johnson', 'joliot', 'jones', 'kalam', 'kapitsa', 'kare', 'keldysh', 'keller', 'kepler', 'khayyam', 'khorana', 'kilby', 'kirch', 'knuth', 'kowalevski', 'lalande', 'lamarr', 'lamport', 'leakey', 'leavitt', 'lederberg', 'lehmann', 'lewin', 'lichterman', 'liskov', 'lovelace', 'lumiere', 'mahavira', 'margulis', 'matsumoto', 'maxwell', 'mayer', 'mccarthy', 'mcclintock', 'mclaren', 'mclean', 'mcnulty', 'mendel', 'mendeleev', 'meitner', 'meninsky', 'merkle', 'mestorf', 'minsky', 'mirzakhani', 'moore', 'morse', 'murdock', 'moser', 'napier', 'nash', 'neumann', 'newton', 'nightingale', 'nobel', 'noether', 'northcutt', 'noyce', 'panini', 'pare', 'pascal', 'pasteur', 'payne', 'perlman', 'pike', 'poincare', 'poitras', 'proskuriakova', 'ptolemy', 'raman', 'ramanujan', 'ride', 'montalcini', 'ritchie', 'rhodes', 'robinson', 'roentgen', 'rosalind', 'rubin', 'saha', 'sammet', 'sanderson', 'shannon', 'shaw', 'shirley', 'shockley', 'shtern', 'sinoussi', 'snyder', 'solomon', 'spence', 'sutherland', 'stallman', 'stonebraker', 'swanson', 'swartz', 'swirles', 'taussig', 'tereshkova', 'tesla', 'tharp', 'thompson', 'torvalds', 'tu', 'turing', 'varahamihira', 'vaughan', 'visvesvaraya', 'volhard', 'villani', 'wescoff', 'wiles', 'williams', 'williamson', 'wilson', 'wing', 'wozniak', 'wright', 'wu', 'yalow', 'yonath', 'zhukovsky'],
+      user: {},
+    };
   }
 
   authenticate() {
@@ -52,6 +60,23 @@ class Database {
           type: Sequelize.INTEGER,
           unique: 'user_team_unique',
         },
+      }),
+      token: this.sequelize.define('token', {
+        temporaryToken: {
+          type: Sequelize.STRING,
+          allowNull: false,
+          unique: true,
+        },
+        token: {
+          type: Sequelize.STRING,
+          allowNull: false,
+          unique: true,
+        },
+        expiredAt: {
+          type: Sequelize.DATE,
+          allowNull: false,
+        },
+        /* userId */
       }),
       product: this.sequelize.define('product', {
         name: {
@@ -101,6 +126,9 @@ class Database {
       constraints: false,
     });
 
+    this.models.user.hasMany(this.models.token, { foreignKey: 'userId' });
+    this.models.token.belongsTo(this.models.user, { foreignKey: 'userId' });
+
     this.models.product.belongsTo(this.models.team, { foreignKey: 'teamId' });
     this.models.team.hasMany(this.models.product, { foreignKey: 'teamId' });
 
@@ -110,6 +138,35 @@ class Database {
     return Object.values(this.models)
       .reduce((prev, next) => prev.then(() => next.sync()),
         this.sequelize.authenticate());
+  }
+
+  async findOrCreateTemporaryToken(userId) {
+    let token = await this.generateTemporaryToken();
+    let retry = 0;
+    while (this.tempToken.user[token]) {
+      if (retry === 10) {
+        token = `${userId}_${token}`;
+        break;
+      }
+      // eslint-disable-next-line
+      token = await this.generateTemporaryToken();
+      retry += 1;
+    }
+    this.tempToken.user[token] = {
+      timeout: setTimeout(() => {
+        delete this.tempToken.user[token];
+      }, Config.TEMPORARY_TOKEN_WAIT),
+      token,
+      expiredAt: moment().add(Config.TEMPORARY_TOKEN_WAIT, 'ms').toISOString(),
+      userId,
+    };
+    return this.tempToken.user[token];
+  }
+
+  async generateTemporaryToken() {
+    const left = Math.round(Math.random() * this.tempToken.left.length - 1);
+    const right = Math.round(Math.random() * this.tempToken.right.length - 1);
+    return `${this.tempToken.left[left]}_${this.tempToken.right[right]}`;
   }
 
   async findUser(lineUserId) {

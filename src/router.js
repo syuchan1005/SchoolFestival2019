@@ -17,15 +17,15 @@ const router = new Router({
       component: () => import(/* webpackChunkName: "authed" */ './views/Home.vue'),
     },
     {
+      path: '/setting',
+      name: 'setting',
+      component: () => import(/* webpackChunkName: "authed" */ './views/Setting.vue'),
+    },
+    {
       alias: '/register',
       path: '/register/info',
       name: 'information',
       component: () => import(/* webpackChunkName: "authed" */ './views/Information.vue'),
-    },
-    {
-      path: '/register/setting',
-      name: 'setting',
-      component: () => import(/* webpackChunkName: "authed" */ './views/Setting.vue'),
     },
     {
       path: '/register/operation',

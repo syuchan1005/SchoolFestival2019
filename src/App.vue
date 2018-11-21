@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <div class="loading" v-show="isLoading || $apollo.loading"></div>
+    <div class="loading" v-show="$apollo.loading"></div>
 
     <v-toolbar color="green" dark tabs class="app-header" v-if="$route.path !== '/'">
       <v-toolbar-title>School Festival 2019</v-toolbar-title>
@@ -11,7 +11,7 @@
       <v-icon @click="$apollo.queries.teams.refetch()" style="margin: 0 20px 0 10px">
         refresh
       </v-icon>
-      <v-btn class="blue darken-1" href="/logout">logout</v-btn>
+      <v-btn class="blue darken-1" @click="logout">logout</v-btn>
 
       <v-tabs slot="extension" grow color="green" slider-color="yellow">
         <v-tab v-for="section in sections" :key="section.label" :to="section.to">
@@ -36,7 +36,6 @@
 
 <script>
 import gql from 'graphql-tag';
-import { mapGetters } from 'vuex';
 
 export default {
   name: 'App',
@@ -71,6 +70,10 @@ export default {
           label: 'register',
           to: '/register',
         },
+        {
+          label: 'Setting',
+          to: '/setting',
+        },
       ],
       pages: [
         {
@@ -83,19 +86,12 @@ export default {
           label: 'Operation',
           icon: 'fa-cart-plus',
           to: '/register/operation',
-        }, {
-          color: 'green',
-          label: 'Setting',
-          icon: 'settings',
-          to: '/register/setting',
         },
       ],
       teams: [],
     };
   },
   computed: {
-    ...mapGetters(['isLoading']),
-    // ...mapState(['teams']),
     teamId: {
       get() {
         return this.$store.state.teamId;
@@ -111,6 +107,18 @@ export default {
       set(val) {
         this.$router.push(val);
       },
+    },
+  },
+  methods: {
+    logout() {
+      this.$http({
+        method: 'get',
+        url: '/logout',
+      }).then(() => {
+        localStorage.removeItem('tempToken');
+        localStorage.removeItem('token');
+        this.$router.push({ path: '/', query: { state: 'logout' } });
+      });
     },
   },
 };

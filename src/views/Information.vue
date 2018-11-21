@@ -83,7 +83,7 @@ import LineChart from '../components/LineChart';
 
 export default {
   name: 'Information',
-  title: 'School Festival 2019 (Information)',
+  title: 'Information - School Festival 2019',
   components: { LineChart },
   apollo: {
     data: {

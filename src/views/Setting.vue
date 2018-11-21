@@ -1,5 +1,24 @@
 <template>
   <div class="setting app-footer-margin">
+    <v-card flat>
+      <apollo-mutation :mutation="getTokenMutation" v-if="!token"
+                       @done="({ data }) => { token = data.userToken }">
+        <template slot-scope="{ mutate, loading }">
+          <v-btn dark color="orange" block depressed large @click="mutate()" :disabled="loading">
+            Tokenを取得する
+          </v-btn>
+        </template>
+      </apollo-mutation>
+      <v-card-text v-else style="display:flex;align-items:center">
+        <v-card style="padding: 5px;margin:5px">{{ expire }}まで</v-card>
+        <v-text-field hide-details readonly :value="token.token" />
+        <v-tooltip top>
+          <v-icon slot="activator" @click="copyToken">file_copy</v-icon>
+          <span>Copy</span>
+        </v-tooltip>
+      </v-card-text>
+    </v-card>
+
     <v-card class="teamname-field">
       <v-combobox ref="joinTeamForm" chips clearable multiple
                   label="参加団体" :items="teams" v-model="joinedTeamsModel"
@@ -130,10 +149,12 @@
 </template>
 
 <script>
+import moment from 'moment';
 import gql from 'graphql-tag';
 
 export default {
   name: 'Setting',
+  title: 'Setting - School Festival 2019',
   apollo: {
     products: {
       query: gql`query Products($teamId: Int!) {
@@ -196,12 +217,28 @@ export default {
       deleteProductMutation: gql`mutation DeleteProduct($productId: Int!) {
         deleteProduct(productId: $productId) { success }
       }`,
+
+      getTokenMutation: gql`mutation{userToken{token expiredAt}}`,
+      token: undefined,
     };
+  },
+  computed: {
+    expire() {
+      return moment(this.token.expireDate).format('YYYY-MM-DD HH:mm');
+    },
   },
   methods: {
     removeChip(chip) {
       this.joinedTeamsModel.splice(this.joinedTeamsModel.indexOf(chip), 1);
       this.joinedTeamsModel = [...this.joinedTeamsModel];
+    },
+    copyToken() {
+      const a = document.createElement('textarea');
+      a.textContent = this.token.token;
+      document.body.appendChild(a);
+      a.select();
+      document.execCommand('copy');
+      document.body.removeChild(a);
     },
   },
 };

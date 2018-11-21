@@ -23,6 +23,7 @@
 
 export default {
   name: 'Home',
+  title: 'Home - School Festival 2019',
   data() {
     return {
       type: 'all',

@@ -1,6 +1,24 @@
 <template>
   <div class="home">
-    <v-card class="mx-auto" max-width="500" width="90vw">
+    <v-card v-if="pwa" class="mx-auto" max-width="500" width="90vw">
+      <v-card-title class="title font-weight-regular justify-space-between">
+        <span>SchoolFestival 2019</span>
+      </v-card-title>
+      <v-card-text>
+        <div>WebからTokenを取得して入力してください</div>
+        <v-form ref="token">
+          <v-text-field label="Token" v-model="token" :disabled="tokenLoading"
+                        required :rules="[v => v.length > 0 || '入力必須です']"/>
+        </v-form>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn class="primary" @click="authToken" :disabled="tokenLoading">
+          ログイン
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+    <v-card v-else class="mx-auto" max-width="500" width="90vw">
       <v-card-title class="title font-weight-regular justify-space-between">
         <span>SchoolFestival 2019</span>
       </v-card-title>
@@ -80,16 +98,26 @@ export default {
     teams: ['TestA', 'TestB'],
     registrationCode: '',
     reloadRegistrationCode: false,
+    iframeUrl: undefined,
+
+    token: '',
+    tokenLoading: false,
   }),
-  computed: {},
+  computed: {
+    pwa: {
+      get() {
+        return this.$store.state.isPWA;
+      },
+      set(val) {
+        this.$store.commit('setPWA', val);
+      },
+    },
+  },
   mounted() {
     const query = qs.parse(window.location.search.substring(1));
-    if (!query.state) {
-      this.$http({
-        url: '/api',
-      }).then((res) => {
-        if (res.status === 200) this.$router.push('/home');
-      }).catch(() => {} /* ignored */);
+    this.pwa = query.launcher === 'true';
+    if (this.pwa) {
+      this.loginToken();
     }
   },
   methods: {
@@ -128,6 +156,37 @@ export default {
     },
     openBotURL() {
       window.open(process.env.VUE_APP_BOT_URL);
+    },
+    authToken() {
+      this.tokenLoading = true;
+      if (!this.$refs.token.validate()) return;
+      this.$http({
+        method: 'post',
+        url: '/token/auth',
+        data: {
+          token: this.token,
+        },
+      }).then((res) => {
+        localStorage.setItem('tempToken', this.token);
+        localStorage.setItem('token', res.data);
+        this.loginToken();
+        this.tokenLoading = false;
+      }).catch(() => {
+        this.tokenLoading = false;
+      });
+    },
+    loginToken() {
+      const tempToken = localStorage.getItem('tempToken');
+      const token = localStorage.getItem('token');
+      if (tempToken && token) {
+        this.$http({
+          method: 'post',
+          url: '/token/login',
+          data: { tempToken, token },
+        }).then(() => {
+          this.$router.push('/home');
+        }).catch(/* ignored */);
+      }
     },
   },
 };

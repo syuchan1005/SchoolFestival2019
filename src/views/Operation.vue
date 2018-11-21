@@ -95,6 +95,7 @@ import gql from 'graphql-tag';
 
 export default {
   name: 'Operation',
+  title: 'Operation - School Festival 2019',
   apollo: {
     products: {
       query: gql`query Products($teamId: Int!){

@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import crypto from 'crypto';
 
 import Koa from 'koa';
 import KoaLogger from 'koa-logger';
@@ -98,6 +99,11 @@ const typeDefs = gql`
     products: [Product!]!
     orders: [Order!]!
   }
+  
+  type Token {
+    token: String!
+    expiredAt: DateTime!
+  }
 
   type Result {
     success: Boolean!
@@ -121,6 +127,8 @@ const typeDefs = gql`
 
     deleteOrder(orderId: Int!): Result!
     deleteProduct(productId: Int!): Result!
+
+    userToken: Token!
   }
 `;
 
@@ -252,6 +260,9 @@ const resolvers = {
         success: true,
       };
     },
+    userToken(obj, args, ctx) {
+      return Database.findOrCreateTemporaryToken(ctx.user.id);
+    },
   },
 };
 
@@ -318,7 +329,7 @@ router.get('/line/callback', async (ctx) => {
 
 router.get('/logout', (ctx) => {
   delete ctx.session.lineUserId;
-  ctx.redirect(`https://${Config.BASE_URL}/?state=logout#/`);
+  ctx.status = 200;
 });
 
 router.post('/registration', async (ctx) => {
@@ -350,6 +361,39 @@ router.get('/registration/wait', ctx => (new Promise((resolve) => {
     resolve();
   }
 })));
+
+router.post('/token/auth', async (ctx) => {
+  const tempToken = Database.tempToken.user[ctx.request.body.token];
+  if (tempToken) {
+    const token = crypto.createHash('sha256').update(`${tempToken.userId}_${tempToken.token}`).digest('hex');
+    await Database.models.token.create({
+      temporaryToken: tempToken.token,
+      token,
+      expiredAt: moment().add(Config.TOKEN_EXPIRE_DAYS, 'days').toDate(),
+      userId: tempToken.userId,
+    });
+    ctx.status = 200;
+    ctx.body = token;
+  } else {
+    ctx.status = 400;
+  }
+});
+
+router.post('/token/login', async (ctx) => {
+  const { tempToken, token } = ctx.request.body;
+  const tokenModel = await Database.models.token.findOne({
+    where: {
+      temporaryToken: tempToken,
+      token,
+    },
+  });
+  if (tokenModel) {
+    ctx.session.lineUserId = (await tokenModel.getUser()).lineUserId;
+    ctx.status = 200;
+  } else {
+    ctx.status = 400;
+  }
+});
 
 app.use(router.routes());
 app.use(router.allowedMethods());
