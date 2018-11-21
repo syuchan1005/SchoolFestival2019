@@ -4,9 +4,8 @@
 > なお今年はLINEBotです
 
 ## 使い方
-1. プロジェクトルートに`config.js`を作成
-2. `module.exports = {LINE_ACCESS_TOKEN: '', BASE_URL: ''};`を書き込み, 各値を埋める
-> BASE_URLは画像配給に利用します
+1. `.env.sample`と`config.sample.js`をそれぞれ`.env`, `config.js`にリネーム
+2. `.env`と`config.js`を埋める
 3. `npm install`
 4. `npm run build`
 5. `npm run start`
