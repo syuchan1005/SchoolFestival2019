@@ -144,6 +144,10 @@ export default {
     right: 16px;
   }
 
+  .v-btn.v-btn--floating.refetch-btn.no-bottom {
+    bottom: 16px;
+  }
+
   .app-header .v-toolbar__content {
     display: flex;
     flex-wrap: wrap;
@@ -164,8 +168,11 @@ export default {
     background-color: rgba(0, 0, 0, 0.5);
   }
 
-  .app-header.xs + .v-content {
-    padding-top: 152px !important;
+  .v-content {
+    padding-left: constant(safe-area-inset-left);
+    padding-left: env(safe-area-inset-left);
+    padding-right: constant(safe-area-inset-right);
+    padding-right: env(safe-area-inset-right);
   }
 
   .v-content.bottom-bar {
@@ -179,10 +186,20 @@ export default {
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  .app-header.xs {
-    .form {
-      width: 100%;
-      order: 1;
+  .app-header {
+    padding-top: constant(safe-area-inset-top);
+    padding-top: env(safe-area-inset-top);
+
+    &.xs {
+      .form {
+        width: 100%;
+        order: 1;
+      }
+
+      & + .v-content {
+        padding-top: calc(152px + constant(safe-area-inset-top)) !important;
+        padding-top: calc(152px + env(safe-area-inset-top)) !important;
+      }
     }
   }
 </style>
