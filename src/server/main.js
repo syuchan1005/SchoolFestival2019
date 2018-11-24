@@ -25,6 +25,12 @@ const mainInfoLog = debug('main:info');
 const app = new Koa();
 app.keys = ['will be change'];
 
+const port = process.env.PORT || 8080;
+const httpServer = app.listen(port, async () => {
+  await Database.authenticate();
+  mainInfoLog(chalk`{red listen} {underline.blue localhost:${port}}`);
+});
+
 const pathLogger = debug('main:koa');
 app.use(KoaLogger(v => pathLogger(v)));
 app.use(KoaCors({
@@ -32,7 +38,7 @@ app.use(KoaCors({
 }));
 app.use(KoaBodyParser());
 app.use(KoaSession(app));
-GraphQL.applyMiddleware(app);
+GraphQL.applyMiddleware(app, httpServer);
 
 const router = new KoaRouter();
 
@@ -115,26 +121,21 @@ router.get('/registration/wait', ctx => (new Promise((resolve) => {
 router.post('/token/auth', async (ctx) => {
   const tempToken = Database.tempToken.user[ctx.request.body.token];
   if (tempToken) {
-    const token = crypto.createHash('sha256').update(`${tempToken.userId}_${tempToken.token}`).digest('hex');
-    await Database.models.token.create({
-      temporaryToken: tempToken.token,
-      token,
-      expiredAt: moment().add(Config.TOKEN_EXPIRE_DAYS, 'days').toDate(),
-      userId: tempToken.userId,
-    });
     ctx.status = 200;
-    ctx.body = token;
+    ctx.body = await Database
+      .createToken(`${tempToken.userId}_${tempToken.token}_${Date.now()}`, tempToken.userId);
   } else {
     ctx.status = 400;
   }
 });
 
 router.post('/token/login', async (ctx) => {
-  const { tempToken, token } = ctx.request.body;
   const tokenModel = await Database.models.token.findOne({
     where: {
-      temporaryToken: tempToken,
-      token,
+      token: ctx.request.body.token,
+      expiredAt: {
+        [Database.Sequelize.Op.lte]: Date.now(),
+      },
     },
   });
   if (tokenModel) {
@@ -158,10 +159,3 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 app.use(KoaStatic('./public'));
-
-const port = process.env.PORT || 8080;
-Database.authenticate()
-  .then(async () => {
-    app.listen(port);
-    mainInfoLog(chalk`{red listen} {underline.blue localhost:${port}}`);
-  });

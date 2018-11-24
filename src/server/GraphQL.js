@@ -1,13 +1,27 @@
+import crypto from 'crypto';
+
 import { GraphQLScalarType } from 'graphql';
 import { Kind } from 'graphql/language';
 import { ApolloServer, gql } from 'apollo-server-koa';
 import { GraphQLDateTime } from 'graphql-iso-date';
+import { PubSub } from 'graphql-subscriptions';
+
 import moment from 'moment';
 
 import Database from './Database';
+import Config from '../../config';
 
+/* eslint-disable class-methods-use-this */
 class GraphQL {
-  static get typeDefs() {
+  constructor() {
+    this.pubsub = new PubSub();
+    this.publishKeys = {
+      orderAdded: 'ORDER_ADDED',
+    };
+    this.wsToken = {};
+  }
+
+  get typeDefs() {
     return gql`
       scalar Date
       scalar Time
@@ -100,11 +114,12 @@ class GraphQL {
         deleteProduct(productId: Int!): Result!
 
         userToken: Token!
+        webSocketToken: Token!
       }
     `;
   }
 
-  static get scalarTypes() {
+  get scalarTypes() {
     return {
       Date: new GraphQLScalarType({
         name: 'Date',
@@ -136,7 +151,7 @@ class GraphQL {
     };
   }
 
-  static get typeFields() {
+  get typeFields() {
     return {
       User: {
         teams(userModel) {
@@ -181,7 +196,7 @@ class GraphQL {
     };
   }
 
-  static get Query() {
+  get Query() {
     return {
       user(obj, args, ctx) {
         if (!ctx.user) throw new Error('User not found');
@@ -211,7 +226,7 @@ class GraphQL {
     };
   }
 
-  static get Mutation() {
+  get Mutation() {
     return {
       async updateUserTeams(obj, { teams }, ctx) {
         if (!ctx.user) throw new Error('User not found');
@@ -219,10 +234,13 @@ class GraphQL {
         await Database.updateUserTeams(ctx.user.lineUserId, teams);
         return ctx.user;
       },
-      async addOrder(obj, { productId, amount, ticket }, ctx) {
+      addOrder: async (obj, { productId, amount, ticket }, ctx) => {
         if (!ctx.user) throw new Error('User not found');
         if (!await Database.hasProduct(ctx.user.id, productId)) throw new Error('You can not add order from teams not joined');
-        return Database.addOrder(productId, amount, ticket);
+        return Database.addOrder(productId, amount, ticket).then((model) => {
+          this.pubsub.publish(this.publishKeys.orderAdded, model);
+          return model;
+        });
       },
       async addProduct(obj, { teamId, name, price }, ctx) {
         if (!ctx.user) throw new Error('User not found');
@@ -248,22 +266,46 @@ class GraphQL {
       userToken(obj, args, ctx) {
         return Database.findOrCreateTemporaryToken(ctx.user.id);
       },
+      webSocketToken: (obj, args, ctx) => {
+        if (!ctx.user) throw new Error('User not found');
+        const token = crypto.createHash('sha256').update(`${ctx.user.id}-${Date.now()}`).digest('hex');
+        this.wsToken[token] = {
+          token,
+          expiredAt: moment().add(Config.WEBSOCKET_TOKEN_EXPIRE, 'ms'),
+          userId: ctx.user.id,
+          timeout: setTimeout(() => {
+            delete this.wsToken[token];
+          }, Config.WEBSOCKET_TOKEN_EXPIRE),
+        };
+        return this.wsToken[token];
+      },
     };
   }
 
-  applyMiddleware(app) {
+  applyMiddleware(app /* , httpServer */) {
     if (!this.server) {
+      const {
+        typeDefs,
+        scalarTypes,
+        typeFields,
+        Query, Mutation,
+      } = this;
       this.server = new ApolloServer({
-        typeDefs: GraphQL.typeDefs,
+        typeDefs,
         resolvers: {
-          ...GraphQL.scalarTypes,
-          ...GraphQL.typeFields,
-          Query: GraphQL.Query,
-          Mutation: GraphQL.Mutation,
+          ...scalarTypes,
+          ...typeFields,
+          Query,
+          Mutation,
         },
-        context: async ({ ctx }) => {
-          if (ctx.session.lineUserId) ctx.user = await Database.findUser(ctx.session.lineUserId);
-          return ctx;
+        context: async ({ ctx, connection, payload }) => {
+          if (ctx) {
+            if (ctx.session.lineUserId) {
+              ctx.user = await Database.findUser(ctx.session.lineUserId);
+            }
+            return ctx;
+          }
+          return { connection, payload };
         },
         tracing: true,
         playground: {

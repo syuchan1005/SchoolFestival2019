@@ -235,7 +235,7 @@ export default {
 
 <style lang="scss" scoped>
   .information {
-    padding: 15px 15px 64px;
+    padding: 15px 15px 70px;
   }
 
   .total {

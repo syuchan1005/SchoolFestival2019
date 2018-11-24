@@ -174,7 +174,7 @@ export default {
 
 <style lang="scss" scoped>
   .operation {
-    padding: 15px 15px 64px;
+    padding: 15px 15px 70px;
   }
 
   .forms {

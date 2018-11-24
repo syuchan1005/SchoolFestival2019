@@ -14,4 +14,6 @@ module.exports = {
   TEMPORARY_TOKEN_WAIT: 15000,
   // PWAログイン用のTokenの有効期限 [day]
   TOKEN_EXPIRE_DAYS: 7,
+  // Websocket用Tokenの有効期限 [ms]
+  WEBSOCKET_TOKEN_EXPIRE: 10000,
 };

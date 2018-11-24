@@ -1,16 +1,19 @@
+import crypto from 'crypto';
+
 import Sequelize from 'sequelize';
 import debug from 'debug';
 import { parse as json2csv } from 'json2csv';
 import _ from 'lodash';
+import moment from 'moment';
 
 import Config from '../../config';
-import moment from 'moment';
 
 const logger = debug('main:sql');
 
 /* eslint-disable no-return-await */
 class Database {
   constructor(fileName) {
+    this.Sequelize = Sequelize;
     this.sequelize = new Sequelize({
       database: 'database',
       dialect: 'sqlite',
@@ -62,11 +65,6 @@ class Database {
         },
       }),
       token: this.sequelize.define('token', {
-        temporaryToken: {
-          type: Sequelize.STRING,
-          allowNull: false,
-          unique: true,
-        },
         token: {
           type: Sequelize.STRING,
           allowNull: false,
@@ -169,6 +167,16 @@ class Database {
     return `${this.tempToken.left[left]}_${this.tempToken.right[right]}`;
   }
 
+  async createToken(data, userId) {
+    const token = crypto.createHash('sha256').update(data).digest('hex');
+    await this.models.token.create({
+      token,
+      expiredAt: moment().add(Config.TOKEN_EXPIRE_DAYS, 'days').toDate(),
+      userId,
+    });
+    return token;
+  }
+
   async findUser(lineUserId) {
     /**
      * @property getTeams {Promise<Object>}
@@ -244,17 +252,6 @@ class Database {
   findTeam(teamId) {
     return this.models.team.findOne({
       where: { id: teamId },
-    });
-  }
-
-  getTeamData(teamId) {
-    return this.models.team.findOne({
-      attributes: ['id', 'name'],
-      where: { id: teamId },
-      include: [{
-        model: this.models.product,
-        attributes: ['id', 'name', 'price'],
-      }],
     });
   }
 
@@ -384,6 +381,7 @@ class Database {
           attributes: [],
           model: this.models.product,
           where: { id: productId },
+          paranoid: false,
           required: true,
         }],
       }],
