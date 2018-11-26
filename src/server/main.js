@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-import crypto from 'crypto';
 
 import Koa from 'koa';
 import KoaLogger from 'koa-logger';
@@ -13,7 +12,6 @@ import KoaCors from '@koa/cors';
 import LineLogin from 'line-login';
 import chalk from 'chalk';
 import debug from 'debug';
-import moment from 'moment';
 
 import Config from '../../config';
 import LINEMiddleware from './LINEMiddleware';
@@ -37,7 +35,7 @@ app.use(KoaCors({
   credentials: true,
 }));
 app.use(KoaBodyParser());
-app.use(KoaSession(app));
+app.use(KoaSession({ key: Config.SESSION_KEY }, app));
 GraphQL.applyMiddleware(app, httpServer);
 
 const router = new KoaRouter();

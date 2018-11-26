@@ -103,7 +103,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <apollo-mutation :mutation="deleteProductMutation"
-                           :variables="{ productId: deleteProductId }"
+                           :variables="{ productId: parseInt(deleteProductId, 10) }"
                            @done="() => {
                              this.showDeleteDialog = false;
                              this.$apollo.queries.products.refetch();

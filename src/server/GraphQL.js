@@ -1,11 +1,11 @@
-import crypto from 'crypto';
-
 import { GraphQLScalarType } from 'graphql';
 import { Kind } from 'graphql/language';
 import { ApolloServer, gql } from 'apollo-server-koa';
 import { GraphQLDateTime } from 'graphql-iso-date';
-import { PubSub } from 'graphql-subscriptions';
+import { PubSub, withFilter } from 'graphql-subscriptions';
 
+import SessionUtil from 'koa-session/lib/util';
+import cookie from 'cookie';
 import moment from 'moment';
 
 import Database from './Database';
@@ -16,9 +16,9 @@ class GraphQL {
   constructor() {
     this.pubsub = new PubSub();
     this.publishKeys = {
-      orderAdded: 'ORDER_ADDED',
+      order: 'ORDER',
+      product: 'PRODUCT',
     };
-    this.wsToken = {};
   }
 
   get typeDefs() {
@@ -95,6 +95,21 @@ class GraphQL {
         msg: String
       }
 
+      enum SubscriptionType {
+        ADD
+        DELETE
+      }
+
+      type OrderSubscription {
+        type: SubscriptionType!
+        order: Order!
+      }
+
+      type ProductSubscription {
+        type: SubscriptionType!
+        order: Order!
+      }
+
       type Query {
         user: User
         team(teamId: Int!): Team!
@@ -114,7 +129,11 @@ class GraphQL {
         deleteProduct(productId: Int!): Result!
 
         userToken: Token!
-        webSocketToken: Token!
+      }
+
+      type Subscription {
+        order: OrderSubscription!
+        product: ProductSubscription!
       }
     `;
   }
@@ -238,27 +257,34 @@ class GraphQL {
         if (!ctx.user) throw new Error('User not found');
         if (!await Database.hasProduct(ctx.user.id, productId)) throw new Error('You can not add order from teams not joined');
         return Database.addOrder(productId, amount, ticket).then((model) => {
-          this.pubsub.publish(this.publishKeys.orderAdded, model);
+          this.pubsub.publish(this.publishKeys.order, { type: 'ADD', order: model });
           return model;
         });
       },
-      async addProduct(obj, { teamId, name, price }, ctx) {
+      addProduct: async (obj, { teamId, name, price }, ctx) => {
         if (!ctx.user) throw new Error('User not found');
         if (!await ctx.user.hasTeam(teamId)) throw new Error('You can not add product from teams not joined');
-        return Database.addProduct(name, price, teamId);
+        return Database.addProduct(name, price, teamId).then((model) => {
+          this.pubsub.publish(this.publishKeys.product, { type: 'ADD', product: model });
+          return model;
+        });
       },
-      async deleteOrder(obj, { orderId }, ctx) {
+      deleteOrder: async (obj, { orderId }, ctx) => {
         if (!ctx.user) throw new Error('User not found');
         if (!await Database.hasOrder(ctx.user.id, orderId)) throw new Error('You can not delete order from teams not joined');
-        await (await Database.models.order.findOne({ where: { id: orderId } })).destroy();
+        const order = await Database.models.order.findOne({ where: { id: orderId } });
+        await order.destroy();
+        this.pubsub.publish(this.publishKeys.order, { type: 'DELETE', order });
         return {
           success: true,
         };
       },
-      async deleteProduct(obj, { productId }, ctx) {
+      deleteProduct: async (obj, { productId }, ctx) => {
         if (!ctx.user) throw new Error('User not found');
         if (!await Database.hasProduct(ctx.user.id, productId)) throw new Error('You can not delete product from teams not joined');
-        await (await Database.models.product.findOne({ where: { id: productId } })).destroy();
+        const product = await Database.models.product.findOne({ where: { id: productId } });
+        await product.destroy();
+        this.pubsub.publish(this.publishKeys.product, { type: 'DELETE', product });
         return {
           success: true,
         };
@@ -266,29 +292,37 @@ class GraphQL {
       userToken(obj, args, ctx) {
         return Database.findOrCreateTemporaryToken(ctx.user.id);
       },
-      webSocketToken: (obj, args, ctx) => {
-        if (!ctx.user) throw new Error('User not found');
-        const token = crypto.createHash('sha256').update(`${ctx.user.id}-${Date.now()}`).digest('hex');
-        this.wsToken[token] = {
-          token,
-          expiredAt: moment().add(Config.WEBSOCKET_TOKEN_EXPIRE, 'ms'),
-          userId: ctx.user.id,
-          timeout: setTimeout(() => {
-            delete this.wsToken[token];
-          }, Config.WEBSOCKET_TOKEN_EXPIRE),
-        };
-        return this.wsToken[token];
+    };
+  }
+
+  get Subscription() {
+    return {
+      order: {
+        resolve: payload => payload,
+        subscribe: withFilter(
+          () => this.pubsub.asyncIterator(this.publishKeys.order),
+          (payload, variables, userModel) => Database
+            .hasProduct(userModel.id, payload.order.productId),
+        ),
+      },
+      product: {
+        resolve: payload => payload,
+        subscribe: withFilter(
+          () => this.pubsub.asyncIterator(this.publishKeys.order),
+          (payload, variables, userModel) => Database
+            .hasProduct(userModel.id, payload.product.id),
+        ),
       },
     };
   }
 
-  applyMiddleware(app /* , httpServer */) {
+  applyMiddleware(app, httpServer) {
     if (!this.server) {
       const {
         typeDefs,
         scalarTypes,
         typeFields,
-        Query, Mutation,
+        Query, Mutation, Subscription,
       } = this;
       this.server = new ApolloServer({
         typeDefs,
@@ -297,15 +331,29 @@ class GraphQL {
           ...typeFields,
           Query,
           Mutation,
+          Subscription,
         },
-        context: async ({ ctx, connection, payload }) => {
+        context: async (context) => {
+          const { ctx, connection } = context;
           if (ctx) {
             if (ctx.session.lineUserId) {
               ctx.user = await Database.findUser(ctx.session.lineUserId);
             }
             return ctx;
           }
-          return { connection, payload };
+          return connection.context;
+        },
+        subscriptions: {
+          async onConnect(params, ws, context) {
+            if (!context.request.headers.cookie) ws.close(1003, 'Cookie not found');
+            const sessionValue = cookie.parse(context.request.headers.cookie)[Config.SESSION_KEY];
+            if (!sessionValue) ws.close(1003, 'Session not found');
+            const session = SessionUtil.decode(sessionValue);
+            if (!session.lineUserId) ws.close(1003, 'User not found');
+            const user = await Database.findUser(session.lineUserId);
+            if (!user) ws.close(1003, 'User not found');
+            return user;
+          },
         },
         tracing: true,
         playground: {
@@ -317,6 +365,7 @@ class GraphQL {
       });
     }
     this.server.applyMiddleware({ app, cors: false, bodyParserConfig: false });
+    this.server.installSubscriptionHandlers(httpServer);
   }
 }
 

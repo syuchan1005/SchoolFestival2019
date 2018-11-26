@@ -27,7 +27,11 @@
       <div class="sub">{{change >= 0 ? '不足' : 'お釣り'}}: {{Math.abs(change)}}円</div>
       <v-spacer/>
       <apollo-mutation :mutation="addOrderMutation"
-                       :variables="{ productId: this.selectedProductId, amount, ticket }">
+                       :variables="{
+                         productId: parseInt(this.selectedProductId, 10),
+                         amount: parseInt(amount, 10),
+                         ticket: parseInt(ticket, 10),
+                       }">
         <template slot-scope="{ mutate, loading }">
           <v-btn class="primary" large :disabled="loading" @click="mutate()">追加</v-btn>
         </template>
@@ -65,7 +69,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <apollo-mutation :mutation="deleteOrderMutation"
-                           :variables="{ orderId: deleteOrderId }"
+                           :variables="{ orderId: parseInt(deleteOrderId, 10) }"
                            @done="() => {
                              this.showDeleteDialog = false;
                              this.$apollo.queries.order.refetch();
