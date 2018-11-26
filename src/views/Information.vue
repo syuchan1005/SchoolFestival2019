@@ -117,7 +117,8 @@ export default {
       result({ data }) {
         this.total = data.team.total;
         this.info = data.team.products.map(v => ({
-          name: `${v.name} (${v.price}円)`,
+          name: v.name,
+          price: v.price,
           time: v.timeInfo.reduce((prev, { time, amount }) => {
             // eslint-disable-next-line no-param-reassign
             prev[time] = { amount };
@@ -162,9 +163,18 @@ export default {
       return {
         labels: this.chartLabel,
         datasets: this.info.map(v => ({
-          label: v.name,
+          label: `${v.name} (${v.price}円)`,
           data: this.chartLabel
-            .map(label => (v.time[label] && v.time[label][this.showValue]) || 0),
+            .map((label) => {
+              if (!v.time[label]) return 0;
+              if (this.showValue === 'amount') {
+                return v.time[label].amount;
+              }
+              if (this.showValue === 'subtotal') {
+                return v.time[label].amount * v.price;
+              }
+              return 0;
+            }),
         })),
       };
     },

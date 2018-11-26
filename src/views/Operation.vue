@@ -31,7 +31,7 @@
                          productId: parseInt(this.selectedProductId, 10),
                          amount: parseInt(amount, 10),
                          ticket: parseInt(ticket, 10),
-                       }">
+                       }" @done="$apollo.queries.order.refetch()">
         <template slot-scope="{ mutate, loading }">
           <v-btn class="primary" large :disabled="loading" @click="mutate()">追加</v-btn>
         </template>

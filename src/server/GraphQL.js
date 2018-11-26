@@ -355,7 +355,7 @@ class GraphQL {
             return user;
           },
         },
-        tracing: true,
+        tracing: process.env.NODE_ENV !== 'production',
         playground: {
           settings: {
             'editor.theme': 'light',

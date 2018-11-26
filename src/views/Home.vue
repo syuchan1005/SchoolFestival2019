@@ -1,21 +1,21 @@
 <template>
   <div class="home">
-    <v-btn-toggle class="calendar-toggle" v-model="type">
-      <v-btn flat value="all">
-        全体予定
-      </v-btn>
-      <v-btn value="shift">
-        シフト
-      </v-btn>
-    </v-btn-toggle>
+    <v-data-table :headers="shiftHeader" :items="shiftItem" hide-actions
+                  class="elevation-1">
+      <template slot="items" slot-scope="props">
+        <td v-for="text in props.item" :key="text">
+          {{ text }}
+        </td>
+      </template>
+    </v-data-table>
 
-    <v-card v-if="type === 'all'">
+    <v-card>
       <div style="display: flex">
         <v-spacer />
         <v-btn outline color="primary" @click="expandAll(true)">Expand</v-btn>
         <v-btn outline color="error"  @click="expandAll(false)">Collapse</v-btn>
       </div>
-      <v-flex xs12 lg5 mb-3>
+      <v-flex>
         <v-expansion-panel expand v-model="panelOpen">
           <v-expansion-panel-content v-for="panel in panels" :key="panel.title">
             <div slot="header">
@@ -31,15 +31,6 @@
         </v-expansion-panel>
       </v-flex>
     </v-card>
-
-    <v-data-table :headers="shiftHeader" :items="shiftItem" hide-actions
-                  class="elevation-1" v-else-if="type === 'shift'">
-      <template slot="items" slot-scope="props">
-        <td v-for="text in props.item" :key="text">
-          {{ text }}
-        </td>
-      </template>
-    </v-data-table>
   </div>
 </template>
 
@@ -54,7 +45,6 @@ export default {
   title: 'Home - School Festival 2019',
   data() {
     return {
-      type: 'all',
       panelOpen: [],
       panels: [{
         title: 'AAA',
@@ -113,7 +103,7 @@ export default {
     margin: 10px;
   }
 
-  .v-card + .v-card {
+  .v-card {
     margin-top: 10px;
   }
 </style>
